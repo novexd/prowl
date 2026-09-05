@@ -1,0 +1,93 @@
+"""
+Semantic page index for the Prowl dashboard.
+
+Each searchable dashboard page carries semantic metadata (title, description,
+keywords, and the names of the sections/blocks it contains). The semantic
+search service embeds the *text derived from this metadata* (never raw HTML)
+and compares it against the incoming query.
+
+`blocks` are the in-page section names (mirrored from the Vercel SEARCH_CATALOG
+in website/api/index.py). They are folded into the embedded text so a query
+that names a specific section (e.g. "mention spam", "DJ permissions", "auto
+roles", "score threshold") ranks the right page much more precisely.
+
+Keep this in sync with the Vercel SEARCH_CATALOG. The "panel" value is the URL
+slug used by both sides so results can be joined.
+"""
+
+# panel -> semantic metadata
+PAGES = [
+    {"panel": "overview", "title": "Overview",
+     "description": "Server statistics, recent activity feed and the quick setup checklist.",
+     "keywords": "home dashboard stats overview activity setup",
+     "blocks": ["Server Stats", "Feature Status", "Recent Activity", "Quick Links"]},
+    {"panel": "ai", "title": "AI",
+     "description": "AI chatbot, image generation, custom system prompt and model selection.",
+     "keywords": "ai chat bot openai gpt image generate prompt model chatbot",
+     "blocks": ["Behavior & Personality", "Generation Controls", "Model", "API Keys"]},
+    {"panel": "moderation", "title": "Moderation",
+     "description": "Ban, kick, temp-ban, mute, timeout, warn, purge messages, modlog, emergency lockdown, mute evasion and action DMs.",
+     "keywords": "ban kick mute timeout warn purge modlog lockdown punish moderator",
+     "blocks": ["Actions", "Custom Embed"]},
+    {"panel": "members", "title": "Users",
+     "description": "Member list, role management, notes and warnings per user.",
+     "keywords": "members users roles notes warnings list people",
+     "blocks": ["Add Role", "Change Nickname", "Actions"]},
+    {"panel": "welcomer", "title": "Welcomer",
+     "description": "Welcome messages, goodbye messages, auto role, auto nickname and welcome DMs for new members.",
+     "keywords": "welcome goodbye greeting join leave auto role nickname dm greeter",
+     "blocks": ["Welcome Channel", "Goodbye Channel", "Welcome Message", "Goodbye Message",
+                "Welcome Image Card", "Goodbye Image Card", "Welcome DM", "Auto Roles", "Placeholders"]},
+    {"panel": "verification", "title": "Verification",
+     "description": "Verify button panel, captcha (reCAPTCHA / Turnstile), reaction verification and the verified role.",
+     "keywords": "verify verification captcha recaptcha turnstile reaction verified role anti alt"},
+    {"panel": "leveling", "title": "Leveling",
+     "description": "XP system, rank cards, leaderboard, level roles and level-up announcements.",
+     "keywords": "xp levels leveling rank leaderboard rewards voice text activity",
+     "blocks": ["XP Settings", "Role XP Rates", "Level Roles", "Level-Up Message",
+                "Level-Up Announcements", "Leaderboard"]},
+    {"panel": "automation", "title": "Automation",
+     "description": "Visual automation graph connecting triggers to actions.",
+     "keywords": "automation workflow triggers actions graph events"},
+    {"panel": "autoresponder", "title": "Autoresponder",
+     "description": "Automatic responses whenever a message matches a trigger word or phrase.",
+     "keywords": "autoresponder auto response trigger words replies commands",
+     "blocks": ["Triggers", "Add Trigger"]},
+    {"panel": "global_chat", "title": "Global Chat",
+     "description": "Link this server's channel with other servers into one shared global chat.",
+     "keywords": "global chat link cross server network shared messaging"},
+    {"panel": "aliases", "title": "Command Aliases",
+     "description": "Custom alternative names for slash commands in this server.",
+     "keywords": "alias aliases command rename shortcut custom names slash",
+     "blocks": ["Aliases"]},
+    {"panel": "social_alerts", "title": "Social Alerts",
+     "description": "Notifications for YouTube uploads, Twitch streams going live and X/Twitter posts.",
+     "keywords": "youtube twitch twitter x social alerts notifications posts uploads live stream"},
+    {"panel": "tickets", "title": "Tickets",
+     "description": "Support ticket panels, ticket categories, claiming, closing and staff access.",
+     "keywords": "tickets support help panel claim close category staff"},
+    {"panel": "music", "title": "Music",
+     "description": "Play songs, queue management, skip, loop, shuffle and volume control.",
+     "keywords": "music play song queue skip loop shuffle volume youtube spotify player",
+     "blocks": ["Music Commands", "DJ Permissions", "Default Settings"]},
+    {"panel": "logs", "title": "Logs",
+     "description": "Message edits/deletes, member joins/leaves, voice activity, channel and role changes logging.",
+     "keywords": "logs logging audit message deleted edited joins leaves voice channels moderation trail",
+     "blocks": ["Event Logs"]},
+    {"panel": "automod", "title": "AutoMod",
+     "description": "Anti-spam, invite filter, link filter, emoji spam, mention spam and banned words with automatic punishments.",
+     "keywords": "automod auto filter spam links invites emoji mentions bad words swear censorship"},
+    {"panel": "raid_protection", "title": "Raid Protection",
+     "description": "Detect join raids, block alt accounts, account-age gates and panic mode lockdown.",
+     "keywords": "raid protection raids alts alt detection panic lockdown wave attack security",
+     "blocks": ["Score Threshold", "Join Burst Detection", "Account Age Filter",
+                "Default Avatar Recognition", "Moderation Channel", "Auto Recovery"]},
+    {"panel": "bot_profile", "title": "Bot Profile",
+     "description": "Per-server bot nickname, avatar, banner and bio - how Prowl looks in this server.",
+     "keywords": "bot profile nickname avatar banner bio appearance name photo identity",
+     "blocks": ["Preview"]},
+    {"panel": "settings", "title": "Settings",
+     "description": "General bot configuration for this server.",
+     "keywords": "settings configuration options general preferences config",
+     "blocks": ["Server Overview", "Bot Invite", "Danger Zone", "API Keys"]},
+]
