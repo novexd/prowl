@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prowl - {{ guild.name if guild else 'Dashboard' }}</title>
   <meta name="description" content="prowl is your next discord bot! designed to do everything easily without any issues, its made to tackle every problem with ease. from moderation and ai to music, leveling, and a full web dashboard." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Prowl Dashboard{% if guild %} — {{ guild.name }}{% endif %}" />
+  <meta property="og:description" content="Manage {{ guild.name if guild else 'your server' }} with Prowl's web dashboard. Moderation, AI, automation, leveling, and more." />
+  <meta property="og:url" content="https://prowlbot.xyz/servers" />
+  <meta property="og:image" content="https://prowlbot.xyz/static/preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="/static/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
