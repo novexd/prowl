@@ -64,6 +64,7 @@ class General(commands.Cog):
             .title(emoji_title("bot", "Prowl"))
             .description("A silly little cat bot with a ton of abilities")
             .color("gray")
+            .thumbnail("https://prowlbot.xyz/static/favicon.png")
             .field("Servers", str(len(self.bot.guilds)), inline=True)
             .field("Users", str(len(self.bot.users)), inline=True)
             .field("Uptime", uptime, inline=True)
