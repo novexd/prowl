@@ -320,9 +320,6 @@ class GCControlView(discord.ui.View):
         current = await _get_bool(interaction.guild_id, "gc_enabled")
         new_state = not current
         await _set_bool(interaction.guild_id, "gc_enabled", new_state)
-        if not new_state:
-            await _remove_panel(interaction.client, interaction.guild_id)
-            return await interaction.response.defer()
         enabled, muted, channel_id, blocked_users, blocked_servers, hub = await _get_panel_state(interaction.guild_id)
         embed = _build_panel_embed(interaction.guild, enabled, muted, channel_id, blocked_users, blocked_servers, hub)
         view = _build_main_view(enabled, muted)

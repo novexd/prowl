@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import datetime
+from pathlib import Path
 from typing import Optional
 
 from Ediscord import variables, utils, EmbedBuilder
@@ -56,24 +57,43 @@ class General(commands.Cog):
     @app_commands.command(name="info", description="Show Prowl's info.")
     async def info(self, interaction: discord.Interaction):
         uptime = utils.get_uptime()
+        preview_path = Path(__file__).resolve().parent.parent.parent / "data" / "preview.png"
+        has_preview = preview_path.exists()
         embed = (
             EmbedBuilder()
             .title(emoji_title("bot", "Prowl"))
             .description("A silly little cat bot with a ton of abilities")
             .color("gray")
-            .thumbnail("https://prowlbot.xyz/static/favicon.png")
             .field("Servers", str(len(self.bot.guilds)), inline=True)
             .field("Users", str(len(self.bot.users)), inline=True)
             .field("Uptime", uptime, inline=True)
-            .field("Cogs Loaded", str(len(self.bot.cogs)), inline=True)
-            .field("Commands", str(len(self.bot.tree.get_commands())), inline=True)
-            .field("Python Version", f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}.{__import__('sys').version_info.micro}", inline=True)
-            .field("discord.py Version", discord.__version__, inline=True)
+            .field("Python", f"{__import__('sys').version.split()[0]}", inline=True)
+            .field("discord.py", discord.__version__, inline=True)
+            .field("Version", f"v{variables.__version__}", inline=True)
+            .field(
+                "Powered By",
+                "discord.py, aiohttp, Pillow, psutil, python-dotenv, requests",
+                inline=False,
+            )
+            .field(
+                "Links",
+                "[GitHub](https://github.com/novexd/prowl) · [Website](https://prowlbot.xyz) · [Status](https://status.prowlbot.xyz)",
+                inline=False,
+            )
             .footer(f"Prowl v{variables.__version__}")
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.response.send_message(embed=embed)
+        if has_preview:
+            embed.set_image(url="attachment://preview.png")
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Website", url="https://prowlbot.xyz", style=discord.ButtonStyle.link))
+        view.add_item(discord.ui.Button(label="Status", url="https://status.prowlbot.xyz", style=discord.ButtonStyle.link))
+        if has_preview:
+            file = discord.File(str(preview_path), filename="preview.png")
+            await interaction.response.send_message(embed=embed, view=view, file=file)
+        else:
+            await interaction.response.send_message(embed=embed, view=view)
 
     @app_commands.command(name="invite", description="Get Prowl's invite link")
     async def invite(self, interaction: discord.Interaction):
