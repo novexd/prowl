@@ -918,7 +918,11 @@ class Moderation(commands.Cog, name="Moderation"):
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
-        await interaction.followup.send(embed=embed, delete_after=5)
+        msg = await interaction.followup.send(embed=embed)
+        try:
+            await msg.delete(delay=5)
+        except Exception:
+            pass
 
         log_embed = (
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
