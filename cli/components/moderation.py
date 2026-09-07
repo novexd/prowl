@@ -902,10 +902,10 @@ class Moderation(commands.Cog, name="Moderation"):
             else:
                 deleted = await interaction.channel.purge(limit=count)
         except discord.Forbidden:
-            return await interaction.response.send_message(embed=_error_embed("I don't have permission to delete messages in this channel."), ephemeral=True)
+            return await interaction.followup.send(embed=_error_embed("I don't have permission to delete messages in this channel."), ephemeral=True)
         except discord.HTTPException as e:
             logger.error(f"Purge failed in {interaction.channel.id}: {e}")
-            return await interaction.response.send_message(embed=_error_embed(f"Failed to purge: {e}"), ephemeral=True)
+            return await interaction.followup.send(embed=_error_embed(f"Failed to purge: {e}"), ephemeral=True)
 
         embed = (
             EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
