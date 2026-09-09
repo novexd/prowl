@@ -415,7 +415,7 @@ function markChanged(key, value) {
   saveTimer = setTimeout(() => saveBar.classList.add('is-closed'), 60000);
 }
 
-const REQUIRED_FIELD = { youtube: 'youtube_channel_id', twitch: 'twitch_channel', twitter: 'twitter_handle' };
+const REQUIRED_FIELD = { youtube: 'youtube_channel_id', twitch: 'twitch_channel', twitter: 'twitter_handle', reddit: 'reddit_subreddit', github: 'github_repo', tiktok: 'tiktok_username' };
 
 function updateRequiredWarnings() {
   let ok = true;
@@ -604,6 +604,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         youtube: ['YouTube channel ID', 'e.g. UCxxxxxxxxxxxxxx'],
         twitch: ['Twitch channel name', 'e.g. channel_name'],
         twitter: ['Twitter/X handle', 'e.g. username (no @)'],
+        reddit: ['Subreddit name', 'e.g. python or r/python'],
+        github: ['GitHub repo', 'e.g. owner/repo'],
+        tiktok: ['TikTok username', 'e.g. username (no @)'],
       };
       const hint = hints[extraTab];
       document.getElementById('extra-target-hint').textContent = hint[0];
@@ -636,7 +639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const socialOn = document.querySelector('[data-key="enabled"]')?.checked ?? true;
     const config = document.getElementById('social-config');
     if (config) config.classList.toggle('is-disabled', !socialOn);
-    ['youtube','twitch','twitter'].forEach(p => {
+    ['youtube','twitch','twitter','reddit','github','tiktok'].forEach(p => {
       const enabled = document.querySelector(`[data-key="${p}_enabled"]`)?.checked ?? false;
       const block = document.querySelector(`[data-platform="${p}"]`);
       if (block) block.classList.toggle('is-disabled', !enabled || !socialOn);
