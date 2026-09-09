@@ -42,6 +42,52 @@
     </div>
   </div>
 
+  <div style="margin-bottom:1.5rem;animation-delay:.1s;" id="health-card">
+    <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.3);margin-bottom:0.75rem;">Server Health Score</h2>
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1.25rem;">
+      <div id="health-loading" style="color:rgba(255,255,255,0.4);font-size:14px;font-weight:600;padding:1.5rem 0;text-align:center;"><div class="block-loader"><svg viewBox="0 0 68 68"><circle cx="34" cy="34" r="30"/></svg></div></div>
+      <div id="health-content" style="display:none;">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+          <div id="health-big" style="font-size:48px;font-weight:900;line-height:1;min-width:60px;text-align:center;"></div>
+          <div style="flex:1;">
+            <div id="health-label" style="font-size:13px;font-weight:600;margin-bottom:0.25rem;"></div>
+            <div id="health-desc" style="font-size:12px;color:rgba(255,255,255,0.4);"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+          <div class="health-factor" data-factor="activity" style="padding:0.5rem 0.75rem;border-radius:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;">Activity Trend</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;">
+              <div id="health-activity-bar" style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div id="health-activity-fill" style="height:100%;border-radius:2px;width:0%;transition:width 0.5s;"></div></div>
+              <span id="health-activity-val" style="font-size:13px;font-weight:700;min-width:24px;text-align:right;"></span>
+            </div>
+          </div>
+          <div class="health-factor" data-factor="mod" style="padding:0.5rem 0.75rem;border-radius:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;">Mod Response</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;">
+              <div id="health-mod-bar" style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div id="health-mod-fill" style="height:100%;border-radius:2px;width:0%;transition:width 0.5s;"></div></div>
+              <span id="health-mod-val" style="font-size:13px;font-weight:700;min-width:24px;text-align:right;"></span>
+            </div>
+          </div>
+          <div class="health-factor" data-factor="retention" style="padding:0.5rem 0.75rem;border-radius:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;">Retention</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;">
+              <div id="health-retention-bar" style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div id="health-retention-fill" style="height:100%;border-radius:2px;width:0%;transition:width 0.5s;"></div></div>
+              <span id="health-retention-val" style="font-size:13px;font-weight:700;min-width:24px;text-align:right;"></span>
+            </div>
+          </div>
+          <div class="health-factor" data-factor="quality" style="padding:0.5rem 0.75rem;border-radius:4px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;">Message Quality</div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;">
+              <div id="health-quality-bar" style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div id="health-quality-fill" style="height:100%;border-radius:2px;width:0%;transition:width 0.5s;"></div></div>
+              <span id="health-quality-val" style="font-size:13px;font-weight:700;min-width:24px;text-align:right;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="overview-split" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
     <div  style="animation-delay:.12s">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -311,15 +357,50 @@ function renderStat(el, value, pct) {
   el.innerHTML = html;
 }
 api('/stats/daily').then(d => {
-  const t = d.today || {};
-  const p = d.pct || {};
-  renderStat(document.getElementById('stat-members'), t.members, p.members);
-  renderStat(document.getElementById('stat-channels'), t.channels, p.channels);
-  renderStat(document.getElementById('stat-roles'), t.roles, p.roles);
-  renderStat(document.getElementById('stat-categories'), t.categories, p.categories);
-}).catch(() => {});
+    const t = d.today || {};
+    const p = d.pct || {};
+    renderStat(document.getElementById('stat-members'), t.members, p.members);
+    renderStat(document.getElementById('stat-channels'), t.channels, p.channels);
+    renderStat(document.getElementById('stat-roles'), t.roles, p.roles);
+    renderStat(document.getElementById('stat-categories'), t.categories, p.categories);
+  }).catch(() => {});
 
-// ── Quick Links: reorder by most-used (tracked per user in localStorage) ──
+  // ── Server Health Score ──
+  api('/health').then(d => {
+    const h = d || {};
+    const score = h.score != null ? h.score : 0;
+    const color = h.color || '#ef4444';
+    const label = score >= 80 ? 'Healthy' : score >= 60 ? 'Concerning' : 'Critical';
+    const desc = score >= 80 ? 'Server performance looks good' : score >= 60 ? 'Monitor key areas for improvement' : 'Urgent attention required';
+
+    // Big score display
+    document.getElementById('health-big').textContent = score;
+    document.getElementById('health-label').textContent = label;
+    document.getElementById('health-desc').textContent = desc;
+
+    // Factor bars
+    function setFactorProgress(factor, value) {
+      const fill = document.getElementById(`health-${factor}-fill`);
+      const bar = document.getElementById(`health-${factor}-bar`);
+      const valEl = document.getElementById(`health-${factor}-val`);
+      const width = Math.max(5, value);
+      if (fill) fill.style.width = `${width}%`;
+      if (bar) bar.style.background = value >= 80 ? '#22c55e' : value >= 60 ? '#f59e0b' : '#ef4444';
+      if (valEl) valEl.textContent = value;
+    }
+    setFactorProgress('activity', h.factors?.activity || 0);
+    setFactorProgress('mod', h.factors?.mod_response || 0);
+    setFactorProgress('retention', h.factors?.retention || 0);
+    setFactorProgress('quality', h.factors?.message_quality || 0);
+
+    // Show content, hide loading
+    document.getElementById('health-loading').style.display = 'none';
+    document.getElementById('health-content').style.display = 'block';
+  }).catch(() => {
+    document.getElementById('health-loading').textContent = 'Failed to load health score.';
+  });
+
+  // ── Quick Links: reorder by most-used (tracked per user in localStorage) ──
 (function() {
   const grid = document.querySelector('.quick-grid');
   if (!grid) return;

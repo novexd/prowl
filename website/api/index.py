@@ -2554,6 +2554,142 @@ async def mod_stats_daily(guild_id: str, request: Request):
     }
 
 
+@app.get("/api/v1/mod/{guild_id}/health")
+async def server_health(guild_id: str, request: Request):
+    """Server Health Score based on activity trend, mod response time, member retention, message quality."""
+    await require_guild_access(request, guild_id)
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    today = now.date().isoformat()
+    week_ago = (now - timedelta(days=7)).date().isoformat()
+    two_weeks_ago = (now - timedelta(days=14)).date().isoformat()
+
+    # 1. Activity Trend: compare this week's avg messages vs last week's
+    activity_score = 50
+    try:
+        rows = await query(
+            """SELECT strftime('%Y-%m-%d', timestamp / 86400, 'unixepoch') as day,
+                      SUM(message_count) as daily_messages
+               FROM message_history
+               WHERE guild_id = ? AND timestamp >= ? AND timestamp < ?
+               GROUP BY day""",
+            str(guild_id),
+            int(datetime.strptime(week_ago, "%Y-%m-%d").timestamp()),
+            int(now.timestamp()),
+        )
+        this_week_rows = await query(
+            """SELECT strftime('%Y-%m-%d', timestamp / 86400, 'unixepoch') as day,
+                      SUM(message_count) as daily_messages
+               FROM message_history
+               WHERE guild_id = ? AND timestamp >= ? AND timestamp < ?
+               GROUP BY day""",
+            str(guild_id),
+            int(datetime.strptime(today, "%Y-%m-%d").timestamp()),
+            int(now.timestamp()),
+        )
+        if this_week_rows and rows:
+            cur_avg = sum(r["daily_messages"] for r in this_week_rows) / len(this_week_rows)
+            prev_avg = sum(r["daily_messages"] for r in rows) / len(rows)
+            if prev_avg > 0:
+                ratio = cur_avg / prev_avg
+                if ratio >= 0.9: activity_score = 100
+                elif ratio >= 0.7: activity_score = round(70 + (ratio - 0.7) / 0.2 * 30)
+                elif ratio >= 0.4: activity_score = round(40 + (ratio - 0.4) / 0.3 * 30)
+                else: activity_score = round(10 + ratio / 0.4 * 30)
+    except Exception:
+        pass
+
+    # 2. Mod Response Time: avg time between consecutive mod_log entries (lower = better)
+    mod_score = 50
+    try:
+        rows = await query(
+            """SELECT created_at FROM mod_log
+               WHERE guild_id = ? AND created_at >= ? AND created_at <= ?
+               ORDER BY created_at DESC LIMIT 50""",
+            str(guild_id),
+            int((now - timedelta(days=7)).timestamp()),
+            int(now.timestamp()),
+        )
+        if len(rows) >= 2:
+            timestamps = sorted([r["created_at"] for r in rows])
+            gaps = [timestamps[i+1] - timestamps[i] for i in range(len(timestamps)-1)]
+            avg_gap = sum(gaps) / len(gaps) / 3600  # hours
+            if avg_gap <= 1: mod_score = 100
+            elif avg_gap <= 4: mod_score = round(80 + (4 - avg_gap) / 3 * 20)
+            elif avg_gap <= 24: mod_score = round(50 + (24 - avg_gap) / 20 * 30)
+            elif avg_gap <= 72: mod_score = round(30 + (72 - avg_gap) / 48 * 20)
+            else: mod_score = round(10 + max(0, (72 - avg_gap) / 72 * 10))
+        elif len(rows) == 1:
+            mod_score = 50
+    except Exception:
+        pass
+
+    # 3. Member Retention: compare current member count vs 7 days ago
+    retention_score = 50
+    try:
+        cur_rows = await fetchrow(
+            "SELECT member_count FROM guild_stats_history WHERE guild_id = ? AND day = ?",
+            str(guild_id), today,
+        )
+        prev_rows = await fetchrow(
+            "SELECT member_count FROM guild_stats_history WHERE guild_id = ? AND day = ?",
+            str(guild_id), week_ago,
+        )
+        if cur_rows and prev_rows:
+            cur = int(cur_rows["member_count"] or 0)
+            prev = int(prev_rows["member_count"] or 0)
+            if prev > 0:
+                ratio = cur / prev
+                if ratio >= 0.95: retention_score = 100
+                elif ratio >= 0.85: retention_score = round(80 + (ratio - 0.85) / 0.10 * 20)
+                elif ratio >= 0.70: retention_score = round(55 + (ratio - 0.70) / 0.15 * 25)
+                elif ratio >= 0.50: retention_score = round(30 + (ratio - 0.50) / 0.20 * 25)
+                else: retention_score = round(10 + ratio / 0.50 * 20)
+    except Exception:
+        pass
+
+    # 4. Message Quality: unique active users ratio
+    quality_score = 50
+    try:
+        rows = await query(
+            """SELECT COUNT(DISTINCT user_id) as unique_users FROM leveling_data
+               WHERE guild_id = ? AND messages > 0
+               LIMIT 1""",
+            str(guild_id),
+        )
+        total_rows = await fetchrow(
+            "SELECT member_count FROM guild_stats_history WHERE guild_id = ? AND day = ?",
+            str(guild_id), today,
+        )
+        total = int(total_rows["member_count"] or 0) if total_rows else 0
+        if rows and total > 0:
+            unique = int(rows[0]["unique_users"] or 0)
+            ratio = unique / total
+            if ratio >= 0.5: quality_score = 100
+            elif ratio >= 0.3: quality_score = round(70 + (ratio - 0.3) / 0.2 * 30)
+            elif ratio >= 0.15: quality_score = round(40 + (ratio - 0.15) / 0.15 * 30)
+            elif ratio >= 0.05: quality_score = round(20 + (ratio - 0.05) / 0.10 * 20)
+            else: quality_score = round(5 + ratio / 0.05 * 15)
+    except Exception:
+        pass
+
+    total_score = round((activity_score + mod_score + retention_score + quality_score) / 4)
+    if total_score >= 80: color = "#22C55E"
+    elif total_score >= 60: color = "#F59E0B"
+    elif total_score >= 40: color = "#F59E0B"
+    else: color = "#EF4444"
+
+    return {
+        "score": total_score, "color": color,
+        "factors": {
+            "activity": activity_score,
+            "mod_response": mod_score,
+            "retention": retention_score,
+            "message_quality": quality_score,
+        },
+    }
+
+
 @app.get("/api/v1/mod/{guild_id}/actions")
 async def mod_actions_list(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
