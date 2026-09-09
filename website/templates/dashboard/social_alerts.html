@@ -282,12 +282,12 @@
           <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
             <div class="md-behavior-label" style="margin-bottom:0.3rem;">Release Fields</div>
             <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Show these stats in the embed fields</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.6rem;">
-              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_stars" /><span class="md-toggle-slider"></span> Stars</label>
-              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_forks" /><span class="md-toggle-slider"></span> Forks</label>
-              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_watchers" /><span class="md-toggle-slider"></span> Watchers</label>
-              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_issues" /><span class="md-toggle-slider"></span> Open Issues</label>
-              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_license" /><span class="md-toggle-slider"></span> License</label>
+            <div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.6rem;">
+              <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-key="github_field_stars" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Stars</div></div></div>
+              <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-key="github_field_forks" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Forks</div></div></div>
+              <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-key="github_field_watchers" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Watchers</div></div></div>
+              <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-key="github_field_issues" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Open Issues</div></div></div>
+              <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-key="github_field_license" /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">License</div></div></div>
             </div>
             <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
             <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
