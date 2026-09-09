@@ -16,6 +16,27 @@
   #add-role-list::-webkit-scrollbar { width:4px; }
   #add-role-list::-webkit-scrollbar-track { background:transparent; }
   #add-role-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:999px; }
+
+  /* Fix modals staying visible during scroll */
+  .md-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow-y: auto;
+  }
+  .md-modal-overlay.is-open {
+    display: flex;
+  }
+  .md-modal {
+    width: 100%;
+    max-width: 420px;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
 </style>
 <div style="padding:2rem 0;">
 
@@ -26,24 +47,25 @@
     </div>
     <input type="text" class="md-input" id="member-search" placeholder="Search members..." style="width:220px;" />
   </div>
-    <div class="md-modal">
-      <h3>Actions</h3>
-      <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
-      <input type="text" placeholder="Reason (optional)" id="action-reason" />
-      <div class="md-popover-label">Mute duration</div>
-      <div class="md-popover-row">
-        <button class="md-action-btn" data-dur="10">10m</button>
-        <button class="md-action-btn" data-dur="60">1h</button>
-        <button class="md-action-btn" data-dur="1440">1d</button>
+    <div class="md-modal-overlay" id="member-action-modal">
+      <div class="md-modal">
+        <h3>Actions</h3>
+        <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
+        <input type="text" placeholder="Reason (optional)" id="action-reason" />
+        <div class="md-popover-label">Mute duration</div>
+        <div class="md-popover-row">
+          <button class="md-action-btn" data-dur="10">10m</button>
+          <button class="md-action-btn" data-dur="60">1h</button>
+          <button class="md-action-btn" data-dur="1440">1d</button>
+        </div>
+        <div class="md-popover-label">Mod actions</div>
+        <div class="md-popover-row">
+          <button class="md-action-btn warn" id="modal-kick"><i data-lucide="log-out"></i> Kick</button>
+          <button class="md-action-btn danger" id="modal-ban"><i data-lucide="ban"></i> Ban</button>
+        </div>
+        <button class="md-modal-close">Cancel</button>
       </div>
-      <div class="md-popover-label">Mod actions</div>
-      <div class="md-popover-row">
-        <button class="md-action-btn warn" id="modal-kick"><i data-lucide="log-out"></i> Kick</button>
-        <button class="md-action-btn danger" id="modal-ban"><i data-lucide="ban"></i> Ban</button>
-      </div>
-      <button class="md-modal-close">Cancel</button>
     </div>
-  </div>
 
   <!-- Add role menu -->
   <div class="md-modal-overlay" id="add-role-modal">
