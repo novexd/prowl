@@ -47,7 +47,13 @@
     </div>
     <input type="text" class="md-input" id="member-search" placeholder="Search members..." style="width:220px;" />
   </div>
-    <div class="md-modal-overlay" id="member-action-modal">
+  <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+    <div id="members-table-wrap">
+      <div style="text-align:center;padding:2.5rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Action modal -->
       <div class="md-modal">
         <h3>Actions</h3>
         <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
