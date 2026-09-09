@@ -383,7 +383,7 @@ api('/stats/daily').then(d => {
       const fill = document.getElementById(`health-${factor}-fill`);
       const bar = document.getElementById(`health-${factor}-bar`);
       const valEl = document.getElementById(`health-${factor}-val`);
-      const width = Math.max(5, value);
+      const width = value;
       if (fill) {
         fill.style.width = `${width}%`;
         fill.style.background = value >= 80 ? '#22c55e' : value >= 60 ? '#fbbf24' : '#ef4444';
