@@ -474,7 +474,13 @@
   </div>
   </div>
 </div>
-
+<style>
+@media (max-width:600px){
+  .ee-modal{min-width:0!important;width:calc(100vw - 2rem)!important;max-width:none!important}
+}
+</style>
+{% endblock %}
+{% block overlays %}
 <div class="md-modal-overlay" id="embed-editor-modal">
   <div class="md-modal ee-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
     <h3 id="embed-editor-title">Custom Embed</h3>
@@ -540,11 +546,6 @@
     </div>
   </div>
 </div>
-<style>
-@media (max-width:600px){
-  .ee-modal{min-width:0!important;width:calc(100vw - 2rem)!important;max-width:none!important}
-}
-</style>
 {% endblock %}
 {% block scripts %}
 <script>
