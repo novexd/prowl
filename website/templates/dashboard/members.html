@@ -16,27 +16,6 @@
   #add-role-list::-webkit-scrollbar { width:4px; }
   #add-role-list::-webkit-scrollbar-track { background:transparent; }
   #add-role-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:999px; }
-
-  /* Fix modals staying visible during scroll */
-  .md-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 500;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    overflow-y: auto;
-  }
-  .md-modal-overlay.is-open {
-    display: flex;
-  }
-  .md-modal {
-    width: 100%;
-    max-width: 420px;
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-  }
 </style>
 <div style="padding:2rem 0;">
 
@@ -53,6 +32,9 @@
     </div>
   </div>
 
+</div>
+{% endblock %}
+{% block overlays %}
   <!-- Action modal -->
   <div class="md-modal-overlay" id="member-action-modal">
     <div class="md-modal">
@@ -96,14 +78,6 @@
       </div>
     </div>
   </div>
-
-</div>
-<style>
-@media (max-width:600px){
-  #members-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .md-member-table{min-width:600px}
-}
-</style>
 {% endblock %}
 {% block scripts %}
 <script>
