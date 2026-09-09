@@ -17,9 +17,12 @@
     <!-- YouTube -->
     <div class="md-section">
       <div data-platform="youtube" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">YouTube</div>
-          <label class="md-toggle"><input type="checkbox" data-key="youtube_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="youtube" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="youtube" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="youtube_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="youtube"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
@@ -50,12 +53,17 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="youtube_message" placeholder="New video from {channel}!" />
-            </div>
+        </div>
+        <div data-basic-view="youtube">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="youtube_message" placeholder="New video from {channel}!" />
+          </div>
+        </div>
+        <div data-custom-view="youtube" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="youtube" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -64,9 +72,12 @@
     <!-- Twitch -->
     <div class="md-section">
       <div data-platform="twitch" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitch</div>
-          <label class="md-toggle"><input type="checkbox" data-key="twitch_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="twitch" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="twitch" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="twitch_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="twitch"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
@@ -97,12 +108,17 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="twitch_message" placeholder="{channel} is now live!" />
-            </div>
+        </div>
+        <div data-basic-view="twitch">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="twitch_message" placeholder="{channel} is now live!" />
+          </div>
+        </div>
+        <div data-custom-view="twitch" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="twitch" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -111,9 +127,12 @@
     <!-- Twitter/X -->
     <div class="md-section">
       <div data-platform="twitter" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Twitter / X</div>
-          <label class="md-toggle"><input type="checkbox" data-key="twitter_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="twitter" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="twitter" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="twitter_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="twitter"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-block-warn" style="display:flex;margin-bottom:0.6rem;">
@@ -148,12 +167,17 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="twitter_message" placeholder="New post from @{channel}!" />
-            </div>
+        </div>
+        <div data-basic-view="twitter">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="twitter_message" placeholder="New post from @{channel}!" />
+          </div>
+        </div>
+        <div data-custom-view="twitter" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="twitter" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -162,9 +186,12 @@
     <!-- Reddit -->
     <div class="md-section">
       <div data-platform="reddit" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Reddit</div>
-          <label class="md-toggle"><input type="checkbox" data-key="reddit_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="reddit" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="reddit" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="reddit_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="reddit"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
@@ -195,12 +222,17 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="reddit_message" placeholder="New post in r/{channel}!" />
-            </div>
+        </div>
+        <div data-basic-view="reddit">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="reddit_message" placeholder="New post in r/{channel}!" />
+          </div>
+        </div>
+        <div data-custom-view="reddit" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="reddit" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -209,9 +241,12 @@
     <!-- GitHub -->
     <div class="md-section">
       <div data-platform="github" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">GitHub</div>
-          <label class="md-toggle"><input type="checkbox" data-key="github_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="github" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="github" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="github_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="github"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-behavior-list">
@@ -242,12 +277,26 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="github_message" placeholder="New release from {channel}!" />
+        </div>
+        <div data-basic-view="github">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Release Fields</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Show these stats in the embed fields</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.6rem;">
+              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_stars" /><span class="md-toggle-slider"></span> Stars</label>
+              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_forks" /><span class="md-toggle-slider"></span> Forks</label>
+              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_watchers" /><span class="md-toggle-slider"></span> Watchers</label>
+              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_issues" /><span class="md-toggle-slider"></span> Open Issues</label>
+              <label class="md-toggle" style="font-size:0.78rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" data-key="github_field_license" /><span class="md-toggle-slider"></span> License</label>
             </div>
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="github_message" placeholder="New release from {channel}!" />
+          </div>
+        </div>
+        <div data-custom-view="github" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="github" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -256,9 +305,12 @@
     <!-- TikTok -->
     <div class="md-section">
       <div data-platform="tiktok" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">TikTok</div>
-          <label class="md-toggle"><input type="checkbox" data-key="tiktok_enabled" /><span class="md-toggle-slider"></span></label>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="md-segmented"><button class="extra-tab msg-mode-tab is-active" data-action="tiktok" data-mode="basic">Basic</button><button class="extra-tab msg-mode-tab" data-action="tiktok" data-mode="custom">Custom</button></div>
+            <label class="md-toggle"><input type="checkbox" data-key="tiktok_enabled" /><span class="md-toggle-slider"></span></label>
+          </div>
         </div>
         <div class="md-required-warn" data-required="tiktok"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
         <div class="md-block-warn" style="display:flex;margin-bottom:0.6rem;">
@@ -293,12 +345,17 @@
               </div>
             </div>
           </div>
-          <div class="md-behavior-item" style="align-items:flex-start">
-            <div style="flex:1">
-              <div class="md-behavior-label">Custom Message</div>
-              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
-              <input type="text" class="md-input" data-key="tiktok_message" placeholder="New TikTok from @{channel}!" />
-            </div>
+        </div>
+        <div data-basic-view="tiktok">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom Message</div>
+            <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+            <input type="text" class="md-input" data-key="tiktok_message" placeholder="New TikTok from @{channel}!" />
+          </div>
+        </div>
+        <div data-custom-view="tiktok" style="display:none;">
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.6rem;margin-top:0.6rem;">
+            <button class="md-action-btn" data-edit-embed="tiktok" style="background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.25);"><i data-lucide="edit-3"></i> Edit Custom Embed</button>
           </div>
         </div>
       </div>
@@ -391,6 +448,77 @@
   </div>
   </div>
 </div>
+
+<div class="md-modal-overlay" id="embed-editor-modal">
+  <div class="md-modal ee-modal" style="min-width:520px;max-width:560px;max-height:80vh;overflow-y:auto;">
+    <h3 id="embed-editor-title">Custom Embed</h3>
+    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.2rem 0 0.75rem;line-height:1.5;">Variables work in title, description and footer: <code>{channel}</code> <code>{name}</code> <code>{url}</code></div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;margin:0.75rem 0;">
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Title</div>
+        <input type="text" class="md-input" id="ee-title" placeholder="Embed title" />
+      </div>
+      <div>
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Description</div>
+        <textarea class="md-input md-textarea" id="ee-desc" rows="3" placeholder="Embed description"></textarea>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Color</div>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="color" id="ee-color" value="#5865f2" style="width:36px;height:32px;border:none;background:none;cursor:pointer;" />
+            <input type="text" class="md-input" id="ee-color-hex" value="#5865f2" style="max-width:90px;" />
+          </div>
+          <div class="md-presets" id="ee-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">URL</div>
+          <input type="text" class="md-input" id="ee-url" placeholder="https://..." />
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:0.25rem;line-height:1.4;">Makes the embed title clickable.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Name</div>
+          <input type="text" class="md-input" id="ee-author" placeholder="Author" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Author Icon URL</div>
+          <input type="text" class="md-input" id="ee-author-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Text</div>
+          <input type="text" class="md-input" id="ee-footer" placeholder="Footer" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Footer Icon URL</div>
+          <input type="text" class="md-input" id="ee-footer-icon" placeholder="https://...png" />
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem;">
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Image URL</div>
+          <input type="text" class="md-input" id="ee-image" placeholder="https://...png" />
+        </div>
+        <div style="flex:1;">
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Thumbnail URL</div>
+          <input type="text" class="md-input" id="ee-thumbnail" placeholder="https://...png" />
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="md-action-btn" id="ee-cancel" style="flex:1;justify-content:center;color:rgba(255,255,255,0.4);">Cancel</button>
+      <button class="md-action-btn" id="ee-save" style="flex:1;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;">Save Embed</button>
+    </div>
+  </div>
+</div>
+<style>
+@media (max-width:600px){
+  .ee-modal{min-width:0!important;width:calc(100vw - 2rem)!important;max-width:none!important}
+}
+</style>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -662,6 +790,103 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateGrayOut();
   updateRequiredWarnings();
 
+  // ── Basic/Custom mode switching ──
+  function setModeView(action, mode, dirty) {
+    document.querySelectorAll(`.msg-mode-tab[data-action="${action}"]`).forEach(t => t.classList.toggle('is-active', t.dataset.mode === mode));
+    const basic = document.querySelector(`[data-basic-view="${action}"]`);
+    const custom = document.querySelector(`[data-custom-view="${action}"]`);
+    if (basic) basic.style.display = mode === 'basic' ? '' : 'none';
+    if (custom) custom.style.display = mode === 'custom' ? '' : 'none';
+    if (dirty) markChanged(`${action}_message_mode`, mode);
+  }
+  document.querySelectorAll('.msg-mode-tab').forEach(t => t.addEventListener('click', () => {
+    setModeView(t.dataset.action, t.dataset.mode, true);
+  }));
+  // Restore saved modes
+  ['youtube','twitch','twitter','reddit','github','tiktok'].forEach(p => {
+    const mode = SETTINGS_SNAPSHOT[`${p}_message_mode`] || 'basic';
+    setModeView(p, mode, false);
+  });
+
+  // ── Embed editor ──
+  let currentEmbedAction = null;
+  const eeVal = id => document.getElementById(id)?.value ?? '';
+  function collectEmbed() {
+    const e = {
+      title: eeVal('ee-title'), description: eeVal('ee-desc'), url: eeVal('ee-url'),
+      color: eeVal('ee-color-hex'),
+      author_name: eeVal('ee-author'), author_icon: eeVal('ee-author-icon'),
+      footer_text: eeVal('ee-footer'), footer_icon: eeVal('ee-footer-icon'),
+      image_url: eeVal('ee-image'), thumbnail_url: eeVal('ee-thumbnail'),
+    };
+    for (const k of ['title','description','url','author_name','author_icon','footer_text','footer_icon','image_url','thumbnail_url']) {
+      if (!e[k]) delete e[k];
+    }
+    if (!e.color || e.color.toLowerCase() === '#5865f2') delete e.color;
+    return e;
+  }
+  function loadEmbedEditor(embed) {
+    const e = embed || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    set('ee-title', e.title); set('ee-desc', e.description); set('ee-url', e.url);
+    set('ee-author', e.author_name); set('ee-author-icon', e.author_icon);
+    set('ee-footer', e.footer_text); set('ee-footer-icon', e.footer_icon);
+    set('ee-image', e.image_url); set('ee-thumbnail', e.thumbnail_url);
+    const hex = (e.color && !/^#/.test(String(e.color))) ? '#' + e.color : (e.color || '#5865f2');
+    set('ee-color-hex', hex);
+    const colorInput = document.getElementById('ee-color');
+    if (colorInput) colorInput.value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#5865f2';
+  }
+  const EMBED_DEFAULTS = {
+    youtube: { title:'New YouTube Video!', description:'{channel} just uploaded a new video.', color:'#ff0000' },
+    twitch: { title:'Twitch Stream Live!', description:'{channel} is now live!', color:'#9146ff' },
+    twitter: { title:'New Tweet!', description:'@{channel} just posted.', color:'#1da1f2' },
+    reddit: { title:'New Reddit Post!', description:'New post in r/{channel}', color:'#ff4500' },
+    github: { title:'New GitHub Release!', description:'{channel} just released a new version.', color:'#333333' },
+    tiktok: { title:'New TikTok!', description:'@{channel} just posted a new video.', color:'#000000' },
+  };
+  document.querySelectorAll('[data-edit-embed]').forEach(b => b.addEventListener('click', () => {
+    currentEmbedAction = b.dataset.editEmbed;
+    document.getElementById('embed-editor-title').textContent = `${currentEmbedAction.charAt(0).toUpperCase() + currentEmbedAction.slice(1)} - Custom Embed`;
+    const saved = SETTINGS_SNAPSHOT[`${currentEmbedAction}_embed`] || {};
+    loadEmbedEditor(Object.keys(saved).length ? saved : (EMBED_DEFAULTS[currentEmbedAction] || {}));
+    document.getElementById('embed-editor-modal').classList.add('is-open');
+  }));
+  document.getElementById('ee-save').addEventListener('click', () => {
+    if (currentEmbedAction) {
+      const e = collectEmbed();
+      if (Object.keys(e).length === 0) {
+        if (typeof showToast === 'function') showToast('The embed is empty - add a title, description or footer first.', 'warning', 5000);
+        return;
+      }
+      markChanged(`${currentEmbedAction}_embed`, e);
+      if (typeof showToast === 'function') showToast(`${currentEmbedAction} custom embed updated.`, 'success');
+    }
+    document.getElementById('embed-editor-modal').classList.remove('is-open');
+  });
+  document.getElementById('ee-cancel').addEventListener('click', () => document.getElementById('embed-editor-modal').classList.remove('is-open'));
+  const eeHex = document.getElementById('ee-color-hex');
+  const eeColor = document.getElementById('ee-color');
+  if (eeHex && eeColor) {
+    eeHex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(eeHex.value)) eeColor.value = eeHex.value; });
+    eeColor.addEventListener('input', () => { eeHex.value = eeColor.value; });
+  }
+  const EE_PRESETS = ['#5865f2','#57f287','#fee75c','#faa61a','#ed4245','#eb459e','#00c8ff','#b6a2e0','#ffffff','#313338','#000000'];
+  const eePresets = document.getElementById('ee-presets');
+  if (eePresets) {
+    EE_PRESETS.forEach(c => {
+      const sw = document.createElement('button');
+      sw.type = 'button';
+      sw.style.cssText = 'width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:' + c + ';cursor:pointer;padding:0;';
+      sw.title = c;
+      sw.addEventListener('click', () => {
+        if (eeHex) { eeHex.value = c; eeHex.dispatchEvent(new Event('input')); }
+        if (eeColor) eeColor.value = c;
+      });
+      eePresets.appendChild(sw);
+    });
+  }
+
   saveBtn.addEventListener('click', saveChanges);
   document.getElementById('discard-btn').addEventListener('click', () => {
     for (const key of Object.keys(pending)) {
@@ -680,6 +905,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     for (const key of Object.keys(pending)) delete pending[key];
     saveBar.classList.add('is-closed');
+    // Restore mode views from snapshot
+    ['youtube','twitch','twitter','reddit','github','tiktok'].forEach(p => {
+      setModeView(p, SETTINGS_SNAPSHOT[`${p}_message_mode`] || 'basic', false);
+    });
     updateGrayOut();
     updateRequiredWarnings();
     resetDropdowns();

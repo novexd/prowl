@@ -107,17 +107,53 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         return None
 
     async def _send_alert(self, guild: discord.Guild, settings: dict, platform: str, channel_name: str,
-                          custom_msg=None, ping_role_id=None, announce_channel_id=None, url=None):
+                          custom_msg=None, ping_role_id=None, announce_channel_id=None, url=None,
+                          extra_fields=None):
         """Post an alert with the fallback chain: custom msg → default, role → default role, channel → default channel."""
         channel = self._resolve_channel(guild, announce_channel_id, settings.get("default_announce_channel_id"))
         if not channel:
             return
         role = self._resolve_role(guild, ping_role_id, settings.get("default_ping_role"))
+        mode = settings.get(f"{platform}_message_mode", "basic")
+        if mode == "custom" and settings.get(f"{platform}_embed"):
+            embed_data = dict(settings[f"{platform}_embed"])
+            for k in ("title", "description", "footer_text"):
+                if k in embed_data and isinstance(embed_data[k], str):
+                    embed_data[k] = embed_data[k].replace("{channel}", channel_name).replace("{name}", channel_name).replace("{url}", url or "")
+            color = embed_data.get("color")
+            if isinstance(color, str):
+                color = int(color.lstrip("#"), 16) if color.startswith("#") else int(color)
+            embed = discord.Embed(
+                title=embed_data.get("title", ""),
+                description=embed_data.get("description", ""),
+                url=embed_data.get("url"),
+                color=color or discord.Color.blurple(),
+            )
+            if embed_data.get("author_name"):
+                embed.set_author(name=embed_data["author_name"], icon_url=embed_data.get("author_icon"))
+            if embed_data.get("footer_text"):
+                embed.set_footer(text=embed_data["footer_text"], icon_url=embed_data.get("footer_icon"))
+            if embed_data.get("image_url"):
+                embed.set_image(url=embed_data["image_url"])
+            if embed_data.get("thumbnail_url"):
+                embed.set_thumbnail(url=embed_data["thumbnail_url"])
+            if extra_fields:
+                for fname, fval in extra_fields:
+                    embed.add_field(name=fname, value=str(fval), inline=True)
+            if role:
+                content = role.mention
+            else:
+                content = None
+            try:
+                await channel.send(content=content, embed=embed)
+                logger.info(f"Posted {platform} embed alert for {channel_name} in {guild.id}")
+            except Exception as e:
+                logger.error(f"Social embed alert send failed for {guild.id}: {e}")
+            return
         text = (custom_msg or self.DEFAULT_MESSAGES.get(platform, ""))
         text = text.replace("{channel}", channel_name).replace("{name}", channel_name).replace("{url}", url or "")
         if role:
             text = f"{role.mention} {text}"
-        # Always append the link so the alert is clickable
         if url and "{url}" not in (custom_msg or ""):
             text = f"{text} {url}"
         try:
@@ -392,7 +428,28 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         if self._last_videos.get(key) == release_id:
             return
         self._last_videos[key] = release_id
-        await self._send_alert(guild, settings, "github", repo, custom_msg, ping_role_id, announce_channel_id, release_url)
+        extra_fields = []
+        if settings.get("github_field_stars") or settings.get("github_field_forks") or settings.get("github_field_watchers") or settings.get("github_field_issues") or settings.get("github_field_license"):
+            try:
+                async with aiohttp.ClientSession() as s:
+                    async with s.get(f"https://api.github.com/repos/{repo}", timeout=10, headers={"User-Agent": "ProwlBot/1.0", "Accept": "application/vnd.github.v3+json"}) as resp:
+                        if resp.status == 200:
+                            rdata = await resp.json()
+                            if settings.get("github_field_stars"):
+                                extra_fields.append(("Stars", rdata.get("stargazers_count", 0)))
+                            if settings.get("github_field_forks"):
+                                extra_fields.append(("Forks", rdata.get("forks_count", 0)))
+                            if settings.get("github_field_watchers"):
+                                extra_fields.append(("Watchers", rdata.get("subscribers_count", 0)))
+                            if settings.get("github_field_issues"):
+                                extra_fields.append(("Open Issues", rdata.get("open_issues_count", 0)))
+                            if settings.get("github_field_license"):
+                                lic = rdata.get("license")
+                                if lic:
+                                    extra_fields.append(("License", lic.get("spdx_id", "Unknown")))
+            except Exception:
+                pass
+        await self._send_alert(guild, settings, "github", repo, custom_msg, ping_role_id, announce_channel_id, release_url, extra_fields=extra_fields or None)
 
     # ── TikTok (via RSSHub) ──
     @tasks.loop(minutes=10)
