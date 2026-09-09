@@ -29,6 +29,21 @@ SOCIAL_DEFAULTS = {
     "twitter_ping_role": None,
     "twitter_announce_channel_id": None,
     "twitter_message": None,
+    "reddit_enabled": False,
+    "reddit_subreddit": None,
+    "reddit_ping_role": None,
+    "reddit_announce_channel_id": None,
+    "reddit_message": None,
+    "github_enabled": False,
+    "github_repo": None,
+    "github_ping_role": None,
+    "github_announce_channel_id": None,
+    "github_message": None,
+    "tiktok_enabled": False,
+    "tiktok_username": None,
+    "tiktok_ping_role": None,
+    "tiktok_announce_channel_id": None,
+    "tiktok_message": None,
     # Defaults (fallbacks, overwritten by per-platform values)
     "default_announce_channel_id": None,
     "default_ping_role": None,
@@ -50,6 +65,9 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         "youtube": "New video from {channel}!",
         "twitch": "🔴 {channel} is now live!",
         "twitter": "New post from @{channel}!",
+        "reddit": "New post in r/{channel}!",
+        "github": "New release from {channel}!",
+        "tiktok": "New TikTok from @{channel}!",
     }
 
     def __init__(self, bot: commands.Bot):
@@ -58,11 +76,17 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         self.check_youtube.start()
         self.check_twitch.start()
         self.check_twitter.start()
+        self.check_reddit.start()
+        self.check_github.start()
+        self.check_tiktok.start()
 
     def cog_unload(self):
         self.check_youtube.cancel()
         self.check_twitch.cancel()
         self.check_twitter.cancel()
+        self.check_reddit.cancel()
+        self.check_github.cancel()
+        self.check_tiktok.cancel()
 
     def _resolve_channel(self, guild: discord.Guild, channel_id, fallback_id=None) -> Optional[discord.TextChannel]:
         for cid in (channel_id, fallback_id):
@@ -268,6 +292,158 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         tweet_url = f"https://twitter.com/{handle}/status/{status_id}"
         await self._send_alert(guild, settings, "twitter", f"@{handle}", custom_msg, ping_role_id, announce_channel_id, tweet_url)
 
+    # ── Reddit (RSS feed) ──
+    @tasks.loop(minutes=10)
+    async def check_reddit(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("reddit_enabled"):
+                    continue
+                sub = settings.get("reddit_subreddit")
+                if sub:
+                    await self._check_reddit_sub(guild, settings, sub,
+                                                 settings.get("reddit_message"), settings.get("reddit_ping_role"),
+                                                 settings.get("reddit_announce_channel_id"))
+                for ea in settings.get("extra_alerts", {}).get("reddit", []):
+                    if ea.get("target"):
+                        await self._check_reddit_sub(guild, settings, ea["target"],
+                                                     ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
+            except Exception as e:
+                logger.debug(f"Reddit check failed for {guild.id}: {e}")
+
+    async def _check_reddit_sub(self, guild, settings, subreddit, custom_msg=None, ping_role_id=None, announce_channel_id=None):
+        import xml.etree.ElementTree as ET
+        sub = subreddit.lstrip("r/")
+        url = f"https://www.reddit.com/r/{sub}/new/.rss?limit=1"
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, timeout=15, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.text()
+        except Exception:
+            return
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            return
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        entry = root.find("atom:entry", ns)
+        if entry is None:
+            return
+        post_id = entry.findtext("atom:id", namespaces=ns) or ""
+        title = entry.findtext("atom:title", namespaces=ns) or f"r/{sub}"
+        link_el = entry.find("atom:link", ns)
+        post_url = link_el.get("href", "") if link_el is not None else ""
+        key = f"{guild.id}:reddit:{sub}"
+        if self._last_videos.get(key) == post_id:
+            return
+        self._last_videos[key] = post_id
+        await self._send_alert(guild, settings, "reddit", f"r/{sub}", custom_msg, ping_role_id, announce_channel_id, post_url)
+
+    # ── GitHub (RSS feed for releases) ──
+    @tasks.loop(minutes=15)
+    async def check_github(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("github_enabled"):
+                    continue
+                repo = settings.get("github_repo")
+                if repo:
+                    await self._check_github_repo(guild, settings, repo,
+                                                  settings.get("github_message"), settings.get("github_ping_role"),
+                                                  settings.get("github_announce_channel_id"))
+                for ea in settings.get("extra_alerts", {}).get("github", []):
+                    if ea.get("target"):
+                        await self._check_github_repo(guild, settings, ea["target"],
+                                                      ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
+            except Exception as e:
+                logger.debug(f"GitHub check failed for {guild.id}: {e}")
+
+    async def _check_github_repo(self, guild, settings, repo, custom_msg=None, ping_role_id=None, announce_channel_id=None):
+        import xml.etree.ElementTree as ET
+        repo = repo.lstrip("/")
+        url = f"https://github.com/{repo}/releases.atom"
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, timeout=15, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.text()
+        except Exception:
+            return
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            return
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        entry = root.find("atom:entry", ns)
+        if entry is None:
+            return
+        release_id = entry.findtext("atom:id", namespaces=ns) or ""
+        title = entry.findtext("atom:title", namespaces=ns) or repo
+        link_el = entry.find("atom:link", ns)
+        release_url = link_el.get("href", "") if link_el is not None else ""
+        key = f"{guild.id}:github:{repo}"
+        if self._last_videos.get(key) == release_id:
+            return
+        self._last_videos[key] = release_id
+        await self._send_alert(guild, settings, "github", repo, custom_msg, ping_role_id, announce_channel_id, release_url)
+
+    # ── TikTok (via RSSHub) ──
+    @tasks.loop(minutes=10)
+    async def check_tiktok(self):
+        await self.bot.wait_until_ready()
+        for guild in self.bot.guilds:
+            try:
+                settings = await get_social_settings(guild.id)
+                if not settings.get("tiktok_enabled"):
+                    continue
+                username = settings.get("tiktok_username")
+                if username:
+                    await self._check_tiktok_user(guild, settings, username,
+                                                  settings.get("tiktok_message"), settings.get("tiktok_ping_role"),
+                                                  settings.get("tiktok_announce_channel_id"))
+                for ea in settings.get("extra_alerts", {}).get("tiktok", []):
+                    if ea.get("target"):
+                        await self._check_tiktok_user(guild, settings, ea["target"],
+                                                      ea.get("message"), ea.get("ping_role"), ea.get("announce_channel_id"))
+            except Exception as e:
+                logger.debug(f"TikTok check failed for {guild.id}: {e}")
+
+    async def _check_tiktok_user(self, guild, settings, username, custom_msg=None, ping_role_id=None, announce_channel_id=None):
+        import xml.etree.ElementTree as ET
+        username = username.lstrip("@")
+        url = f"https://rsshub.app/tiktok/user/{username}"
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, timeout=15, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status != 200:
+                        return
+                    data = await resp.text()
+        except Exception:
+            return
+        try:
+            root = ET.fromstring(data)
+        except Exception:
+            return
+        item = root.find(".//item")
+        if item is None:
+            return
+        link = item.findtext("link") or ""
+        title = item.findtext("title") or f"@{username}"
+        video_id = link.rstrip("/").split("/")[-1]
+        key = f"{guild.id}:tiktok:{username}"
+        if self._last_videos.get(key) == video_id:
+            return
+        self._last_videos[key] = video_id
+        video_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
+        await self._send_alert(guild, settings, "tiktok", f"@{username}", custom_msg, ping_role_id, announce_channel_id, video_url)
+
     social_group = app_commands.Group(name="social", description="Social media alert settings")
 
     @social_group.command(name="youtube", description="Set YouTube channel for upload alerts")
@@ -354,6 +530,90 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @social_group.command(name="reddit", description="Set subreddit for post alerts")
+    @app_commands.describe(subreddit="Subreddit name (e.g. 'python' or 'r/python')", ping_role="Role to ping on post", announce_channel="Channel for Reddit announcements")
+    async def set_reddit(self, interaction: discord.Interaction, subreddit: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_social_settings(interaction.guild_id)
+        settings["reddit_enabled"] = True
+        settings["reddit_subreddit"] = subreddit.lstrip("r/")
+        settings["reddit_ping_role"] = str(ping_role.id) if ping_role else None
+        settings["reddit_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
+        await save_social_settings(interaction.guild_id, settings)
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("bell", "Reddit Alerts Set Up"))
+            .color("orange")
+            .row(
+                ('Subreddit', f"r/{subreddit.lstrip('r/')}"),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @social_group.command(name="github", description="Set GitHub repo for release alerts")
+    @app_commands.describe(repo="GitHub repo (e.g. 'novexd/prowl')", ping_role="Role to ping on release", announce_channel="Channel for GitHub announcements")
+    async def set_github(self, interaction: discord.Interaction, repo: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_social_settings(interaction.guild_id)
+        settings["github_enabled"] = True
+        settings["github_repo"] = repo.lstrip("/")
+        settings["github_ping_role"] = str(ping_role.id) if ping_role else None
+        settings["github_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
+        await save_social_settings(interaction.guild_id, settings)
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("bell", "GitHub Alerts Set Up"))
+            .color("gray")
+            .row(
+                ('Repo', f"`{repo.lstrip('/')}`"),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @social_group.command(name="tiktok", description="Set TikTok user for video alerts")
+    @app_commands.describe(username="TikTok username (without @)", ping_role="Role to ping on video", announce_channel="Channel for TikTok announcements")
+    async def set_tiktok(self, interaction: discord.Interaction, username: str, ping_role: Optional[discord.Role] = None, announce_channel: Optional[discord.TextChannel] = None):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
+        settings = await get_social_settings(interaction.guild_id)
+        settings["tiktok_enabled"] = True
+        settings["tiktok_username"] = username.lstrip("@")
+        settings["tiktok_ping_role"] = str(ping_role.id) if ping_role else None
+        settings["tiktok_announce_channel_id"] = str(announce_channel.id) if announce_channel else str(interaction.channel_id)
+        await save_social_settings(interaction.guild_id, settings)
+        embed = (
+            EmbedBuilder()
+            .title(emoji_title("bell", "TikTok Alerts Set Up"))
+            .color("red")
+            .row(
+                ('Username', f"@{username.lstrip('@')}"),
+                ('Ping Role', ping_role.mention if ping_role else 'None'),
+                ('Announce Channel', announce_channel.mention if announce_channel else interaction.channel.mention)
+            )
+            .timestamp(datetime.datetime.utcnow())
+            .build()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @social_group.command(name="config", description="View social alert settings")
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
@@ -365,9 +625,15 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         yt_role = interaction.guild.get_role(int(settings["youtube_ping_role"])) if settings.get("youtube_ping_role") else None
         tw_role = interaction.guild.get_role(int(settings["twitch_ping_role"])) if settings.get("twitch_ping_role") else None
         x_role = interaction.guild.get_role(int(settings["twitter_ping_role"])) if settings.get("twitter_ping_role") else None
+        rd_role = interaction.guild.get_role(int(settings["reddit_ping_role"])) if settings.get("reddit_ping_role") else None
+        gh_role = interaction.guild.get_role(int(settings["github_ping_role"])) if settings.get("github_ping_role") else None
+        tt_role = interaction.guild.get_role(int(settings["tiktok_ping_role"])) if settings.get("tiktok_ping_role") else None
         yt_channel = self._resolve_channel(interaction.guild, settings.get("youtube_announce_channel_id"))
         tw_channel = self._resolve_channel(interaction.guild, settings.get("twitch_announce_channel_id"))
         x_channel = self._resolve_channel(interaction.guild, settings.get("twitter_announce_channel_id"))
+        rd_channel = self._resolve_channel(interaction.guild, settings.get("reddit_announce_channel_id"))
+        gh_channel = self._resolve_channel(interaction.guild, settings.get("github_announce_channel_id"))
+        tt_channel = self._resolve_channel(interaction.guild, settings.get("tiktok_announce_channel_id"))
         embed = (
             EmbedBuilder()
             .title(emoji_title("settings", "Social Alert Settings"))
@@ -376,6 +642,11 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
                 ('YouTube', f"Channel: `{settings.get('youtube_channel_id') or 'Not set'}`\nPing: {(yt_role.mention if yt_role else 'None')}\nAnnounces: {(yt_channel.mention if yt_channel else 'Not set')}"),
                 ('Twitch', f"Channel: `{settings.get('twitch_channel') or 'Not set'}`\nPing: {(tw_role.mention if tw_role else 'None')}\nAnnounces: {(tw_channel.mention if tw_channel else 'Not set')}"),
                 ('Twitter/X', f"Handle: `@{settings.get('twitter_handle') or 'Not set'}`\nPing: {(x_role.mention if x_role else 'None')}\nAnnounces: {(x_channel.mention if x_channel else 'Not set')}")
+            )
+            .row(
+                ('Reddit', f"Sub: `r/{settings.get('reddit_subreddit') or 'Not set'}`\nPing: {(rd_role.mention if rd_role else 'None')}\nAnnounces: {(rd_channel.mention if rd_channel else 'Not set')}"),
+                ('GitHub', f"Repo: `{settings.get('github_repo') or 'Not set'}`\nPing: {(gh_role.mention if gh_role else 'None')}\nAnnounces: {(gh_channel.mention if gh_channel else 'Not set')}"),
+                ('TikTok', f"User: `@{settings.get('tiktok_username') or 'Not set'}`\nPing: {(tt_role.mention if tt_role else 'None')}\nAnnounces: {(tt_channel.mention if tt_channel else 'Not set')}")
             )
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -388,6 +659,9 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
         app_commands.Choice(name="YouTube", value="youtube"),
         app_commands.Choice(name="Twitch", value="twitch"),
         app_commands.Choice(name="Twitter/X", value="twitter"),
+        app_commands.Choice(name="Reddit", value="reddit"),
+        app_commands.Choice(name="GitHub", value="github"),
+        app_commands.Choice(name="TikTok", value="tiktok"),
         app_commands.Choice(name="All", value="all")
     ])
     async def remove(self, interaction: discord.Interaction, platform: str):
@@ -412,6 +686,21 @@ class SocialAlerts(commands.Cog, name="SocialAlerts"):
             settings["twitter_handle"] = None
             settings["twitter_ping_role"] = None
             settings["twitter_announce_channel_id"] = None
+        if platform in ("reddit", "all"):
+            settings["reddit_enabled"] = False
+            settings["reddit_subreddit"] = None
+            settings["reddit_ping_role"] = None
+            settings["reddit_announce_channel_id"] = None
+        if platform in ("github", "all"):
+            settings["github_enabled"] = False
+            settings["github_repo"] = None
+            settings["github_ping_role"] = None
+            settings["github_announce_channel_id"] = None
+        if platform in ("tiktok", "all"):
+            settings["tiktok_enabled"] = False
+            settings["tiktok_username"] = None
+            settings["tiktok_ping_role"] = None
+            settings["tiktok_announce_channel_id"] = None
         await save_social_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
             embed=EmbedBuilder().title(emoji_title("bell_off", "Social Alerts Removed")).description(f"Removed alerts for **{platform}**.").color("gray").timestamp(datetime.datetime.utcnow()).build(),

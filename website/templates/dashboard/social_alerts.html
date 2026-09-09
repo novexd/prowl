@@ -159,6 +159,151 @@
       </div>
     </div>
 
+    <!-- Reddit -->
+    <div class="md-section">
+      <div data-platform="reddit" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">Reddit</div>
+          <label class="md-toggle"><input type="checkbox" data-key="reddit_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-required-warn" data-required="reddit"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Subreddit</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Subreddit to watch for new posts</div>
+              <input type="text" class="md-input" data-key="reddit_subreddit" placeholder="python or r/python" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping on new post</div>
+              <div class="md-custom-select" data-role-select="reddit_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Announce Channel</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Where Reddit alerts are posted</div>
+              <div class="md-custom-select" data-channel-select="reddit_announce_channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+              <input type="text" class="md-input" data-key="reddit_message" placeholder="New post in r/{channel}!" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GitHub -->
+    <div class="md-section">
+      <div data-platform="github" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">GitHub</div>
+          <label class="md-toggle"><input type="checkbox" data-key="github_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-required-warn" data-required="github"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Repo</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">GitHub repo to watch for releases (e.g. novexd/prowl)</div>
+              <input type="text" class="md-input" data-key="github_repo" placeholder="owner/repo" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping on new release</div>
+              <div class="md-custom-select" data-role-select="github_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Announce Channel</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Where GitHub release alerts are posted</div>
+              <div class="md-custom-select" data-channel-select="github_announce_channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+              <input type="text" class="md-input" data-key="github_message" placeholder="New release from {channel}!" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TikTok -->
+    <div class="md-section">
+      <div data-platform="tiktok" style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:0.85rem;font-weight:800;color:rgba(255,255,255,0.7);letter-spacing:-0.01em;">TikTok</div>
+          <label class="md-toggle"><input type="checkbox" data-key="tiktok_enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <div class="md-required-warn" data-required="tiktok"><i data-lucide="alert-triangle" style="width:13px;height:13px;flex-shrink:0;"></i>This field is required - fill it in or disable the platform before saving.</div>
+        <div class="md-block-warn" style="display:flex;margin-bottom:0.6rem;">
+          <i data-lucide="info" style="width:13px;height:13px;flex-shrink:0;"></i>
+          TikTok alerts use a free RSS bridge and may be unreliable or delayed.
+        </div>
+        <div class="md-behavior-list">
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Username</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">TikTok username to watch for videos</div>
+              <input type="text" class="md-input" data-key="tiktok_username" placeholder="username (no @)" />
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Ping Role</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Role to ping on new video</div>
+              <div class="md-custom-select" data-role-select="tiktok_ping_role">
+                <button class="md-custom-select-btn">No role</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Announce Channel</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Where TikTok alerts are posted</div>
+              <div class="md-custom-select" data-channel-select="tiktok_announce_channel_id">
+                <button class="md-custom-select-btn">No channel</button>
+                <div class="md-custom-select-drop"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md-behavior-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="md-behavior-label">Custom Message</div>
+              <div class="md-behavior-desc" style="margin-bottom:0.4rem;">Variables: <code style="color:rgba(255,255,255,0.5)">{channel}</code> <code style="color:rgba(255,255,255,0.5)">{name}</code> <code style="color:rgba(255,255,255,0.5)">{url}</code></div>
+              <input type="text" class="md-input" data-key="tiktok_message" placeholder="New TikTok from @{channel}!" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- More Social Alerts -->
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
@@ -176,6 +321,9 @@
                 <button class="extra-tab is-active" data-tab="youtube">YouTube</button>
                 <button class="extra-tab" data-tab="twitch">Twitch</button>
                 <button class="extra-tab" data-tab="twitter">Twitter/X</button>
+                <button class="extra-tab" data-tab="reddit">Reddit</button>
+                <button class="extra-tab" data-tab="github">GitHub</button>
+                <button class="extra-tab" data-tab="tiktok">TikTok</button>
               </div>
               <input type="text" class="md-input" id="extra-target" style="flex:1;min-width:180px;" placeholder="e.g. UCxxxxxxxxxxxxxx" />
             </div>
