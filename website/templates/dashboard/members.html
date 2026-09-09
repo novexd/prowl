@@ -54,24 +54,25 @@
   </div>
 
   <!-- Action modal -->
-      <div class="md-modal">
-        <h3>Actions</h3>
-        <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
-        <input type="text" placeholder="Reason (optional)" id="action-reason" />
-        <div class="md-popover-label">Mute duration</div>
-        <div class="md-popover-row">
-          <button class="md-action-btn" data-dur="10">10m</button>
-          <button class="md-action-btn" data-dur="60">1h</button>
-          <button class="md-action-btn" data-dur="1440">1d</button>
-        </div>
-        <div class="md-popover-label">Mod actions</div>
-        <div class="md-popover-row">
-          <button class="md-action-btn warn" id="modal-kick"><i data-lucide="log-out"></i> Kick</button>
-          <button class="md-action-btn danger" id="modal-ban"><i data-lucide="ban"></i> Ban</button>
-        </div>
-        <button class="md-modal-close">Cancel</button>
+  <div class="md-modal-overlay" id="member-action-modal">
+    <div class="md-modal">
+      <h3>Actions</h3>
+      <div class="md-member-info" style="margin:0.25rem 0 0.75rem;"><div class="md-member-avatar" id="modal-user-avatar" style="width:36px;height:36px;"></div><span class="md-member-name" id="modal-user-name"></span></div>
+      <input type="text" placeholder="Reason (optional)" id="action-reason" />
+      <div class="md-popover-label">Mute duration</div>
+      <div class="md-popover-row">
+        <button class="md-action-btn" data-dur="10">10m</button>
+        <button class="md-action-btn" data-dur="60">1h</button>
+        <button class="md-action-btn" data-dur="1440">1d</button>
       </div>
+      <div class="md-popover-label">Mod actions</div>
+      <div class="md-popover-row">
+        <button class="md-action-btn warn" id="modal-kick"><i data-lucide="log-out"></i> Kick</button>
+        <button class="md-action-btn danger" id="modal-ban"><i data-lucide="ban"></i> Ban</button>
+      </div>
+      <button class="md-modal-close">Cancel</button>
     </div>
+  </div>
 
   <!-- Add role menu -->
   <div class="md-modal-overlay" id="add-role-modal">
