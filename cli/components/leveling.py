@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import math
+import os
 import random
 import datetime
 from typing import Optional
@@ -25,6 +26,7 @@ LEVELING_DEFAULTS = {
     "level_up_message_mode": "basic", "level_up_embed": {},
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
+    "rank_card": {},
 }
 XP_PER_MESSAGE = (15, 25)
 XP_COOLDOWN = 60
@@ -298,9 +300,8 @@ class Leveling(commands.Cog, name="Leveling"):
         current_level = data["level"]
         next_level_xp = xp_for_level(current_level + 1)
         current_level_xp = xp_for_level(current_level)
-        xp_in_level = current_xp - current_level_xp
-        xp_needed = next_level_xp - current_level_xp
-        
+        xp_needed = next_level_xp - current_xp
+
         pool = await neon_db.get_pool()
         rank = 1
         total_members = 0
@@ -309,19 +310,36 @@ class Leveling(commands.Cog, name="Leveling"):
                 "SELECT COUNT(*) as cnt FROM leveling_data WHERE guild_id = ?",
                 str(interaction.guild_id)
             )
-            total_members = row["cnt"] if row else 0
+            total_members = int(row["cnt"]) if row else 0
             rank_row = await pool.fetchrow(
                 "SELECT COUNT(*) + 1 as rnk FROM leveling_data WHERE guild_id = ? AND xp > ?",
                 str(interaction.guild_id), current_xp
             )
-            rank = rank_row["rnk"] if rank_row else 1
-        
+            rank = int(rank_row["rnk"]) if rank_row else 1
+
+        settings = await get_leveling_settings(interaction.guild_id)
         card = await create_rank_card(
             target, current_level, current_xp, xp_needed, rank, total_members,
-            guild_name=interaction.guild.name if interaction.guild else "Server"
+            guild_name=interaction.guild.name if interaction.guild else "Server",
+            config=settings.get("rank_card"),
         )
         file = discord.File(card, filename=f"rank_{target.id}.png")
-        await interaction.response.send_message(file=file)
+
+        view = discord.ui.View()
+        edit_url = None
+        try:
+            base_url = os.environ.get("APP_URL") or "https://prowlbot.xyz"
+            base_url = base_url.rstrip("/")
+            edit_url = f"{base_url}/guild/{interaction.guild_id}/rank-editor"
+        except Exception:
+            edit_url = None
+        if edit_url:
+            view.add_item(discord.ui.Button(
+                style=discord.ButtonStyle.link,
+                label="Edit Rank Card",
+                url=edit_url,
+            ))
+        return await interaction.response.send_message(file=file, view=view)
 
     @level_group.command(name="leaderboard", description="Show the server XP leaderboard")
     @app_commands.describe(page="Page number (10 per page)")

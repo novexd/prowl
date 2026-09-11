@@ -1225,6 +1225,7 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
         "birthday", "activity_roles", "badges", "temp_channels", "frenzy", "more",
+        "rank-editor",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -3408,6 +3409,7 @@ LEVELING_DEFAULTS = {
     "level_roles": {},
     "level_up_message": "{user} reached **level {level}**!",
     "level_up_message_mode": "basic", "level_up_embed": {},
+    "rank_card": {},
 }
 
 
@@ -3500,7 +3502,65 @@ async def leveling_settings_set(guild_id: str, request: Request):
     return {"ok": True}
 
 
-@app.get("/api/v1/leveling/{guild_id}/leaderboard")
+_BACKGROUND_EXTS = {".png", ".jpg", ".jpeg", ".jfif", ".webp", ".bmp", ".gif", ".tif", ".tiff", ".avif"}
+
+
+def _background_dir():
+    """Resolve the bot's shared background image directory relative to this file.
+
+    Returns None if the directory isn't present (e.g. on edge runtimes that don't
+    ship the bot's static asset tree).
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    candidate = repo_root / "cli" / "data" / "static" / "img"
+    if candidate.is_dir():
+        return candidate
+    return None
+
+
+@app.get("/api/v1/leveling/{guild_id}/backgrounds")
+async def leveling_backgrounds(guild_id: str, request: Request):
+    await require_auth(request)
+    bg_dir = _background_dir()
+    if bg_dir is None:
+        return {"backgrounds": []}
+    items = sorted(
+        p.name for p in bg_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in _BACKGROUND_EXTS
+    )
+    return {"backgrounds": items}
+
+
+@app.get("/api/v1/leveling/{guild_id}/backgrounds/{filename:path}")
+async def leveling_background_file(guild_id: str, filename: str, request: Request):
+    await require_auth(request)
+    bg_dir = _background_dir()
+    if bg_dir is None:
+        raise HTTPException(status_code=404, detail="backgrounds unavailable")
+    # Prevent traversal outside the background directory.
+    safe = (bg_dir / filename).resolve()
+    try:
+        safe.relative_to(bg_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid path")
+    if not safe.is_file() or safe.suffix.lower() not in _BACKGROUND_EXTS:
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(safe)
+
+
+@app.get("/api/v1/leveling/{guild_id}/role-preview")
+async def leveling_role_preview(guild_id: str, request: Request):
+    """Return a sample avatar URL + display name for the editor preview."""
+    await require_guild_access(request, guild_id)
+    user = get_user(request)
+    avatar = None
+    name = "User"
+    if user and isinstance(user, dict):
+        avatar = user.get("avatar_url") or user.get("avatar")
+        name = user.get("display_name") or user.get("name") or "User"
+    if not avatar:
+        avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
+    return {"avatar_url": avatar, "display_name": name}
 async def leveling_leaderboard(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(
