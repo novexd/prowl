@@ -10,6 +10,7 @@ from typing import Optional
 from Ediscord import logger, EmbedBuilder
 from Ediscord import db as neon_db
 from Ediscord.builders import embed_from_dict, emoji_title, EMBED_EMOJIS
+from .image_builder import create_level_up_card, create_rank_card, xp_for_level
 
 
 LEVELING_DEFAULTS = {
@@ -246,6 +247,13 @@ class Leveling(commands.Cog, name="Leveling"):
                         )
                         embed = embed_from_dict(data)
                         await channel.send(embed=embed)
+                    elif mode == "image":
+                        card = await create_level_up_card(
+                            message.author, new_level, new_xp, xp_needed,
+                            guild_name=message.guild.name if message.guild else "Server"
+                        )
+                        file = discord.File(card, filename=f"levelup_{message.author.id}.png")
+                        await channel.send(file=file)
                     else:
                         msg = format_level_up_message(
                             level_up_msg,
@@ -292,23 +300,28 @@ class Leveling(commands.Cog, name="Leveling"):
         current_level_xp = xp_for_level(current_level)
         xp_in_level = current_xp - current_level_xp
         xp_needed = next_level_xp - current_level_xp
-        progress_bar = create_progress_bar(xp_in_level, xp_needed, 15)
-        embed = (
-            EmbedBuilder()
-            .title(emoji_title("rank", f"{target.display_name}'s Rank"))
-            .color("blue")
-            .thumbnail(target.display_avatar.url)
-            .row(
-                ('Level', str(current_level)),
-                ('Total XP', f'{current_xp:,}'),
-                ('Progress', f'{progress_bar}\n{xp_in_level:,} / {xp_needed:,} XP to next level'),
-                ('Next Level', f'Level {current_level + 1} at {next_level_xp:,} XP')
+        
+        pool = await neon_db.get_pool()
+        rank = 1
+        total_members = 0
+        if pool:
+            row = await pool.fetchrow(
+                "SELECT COUNT(*) as cnt FROM leveling_data WHERE guild_id = ?",
+                str(interaction.guild_id)
             )
-            .footer(f"User ID: {str(target.id)}")
-            .timestamp(datetime.datetime.utcnow())
-            .build()
+            total_members = row["cnt"] if row else 0
+            rank_row = await pool.fetchrow(
+                "SELECT COUNT(*) + 1 as rnk FROM leveling_data WHERE guild_id = ? AND xp > ?",
+                str(interaction.guild_id), current_xp
+            )
+            rank = rank_row["rnk"] if rank_row else 1
+        
+        card = await create_rank_card(
+            target, current_level, current_xp, xp_needed, rank, total_members,
+            guild_name=interaction.guild.name if interaction.guild else "Server"
         )
-        await interaction.response.send_message(embed=embed)
+        file = discord.File(card, filename=f"rank_{target.id}.png")
+        await interaction.response.send_message(file=file)
 
     @level_group.command(name="leaderboard", description="Show the server XP leaderboard")
     @app_commands.describe(page="Page number (10 per page)")
