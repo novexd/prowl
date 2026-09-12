@@ -22,9 +22,10 @@
   .simplebar-track.simplebar-vertical .simplebar-scrollbar:hover:before {
     background: rgba(255,255,255,0.12);
   }
-  /* Dark dashboard look on top of the light base_minimal shell */
+  /* Dark dashboard look on top of the light base_minimal shell.
+     Edge-to-edge fullscreen: drop the shell's centered 1240px column. */
   body { background: #0a0a0a !important; color: #e9edf5 !important; }
-  #app-shell { background: #0a0a0a !important; }
+  #app-shell { background: #0a0a0a !important; max-width: none; }
 
   /* Thin dark scrollbar to match the dashboard */
   :root { color-scheme: dark; }
@@ -59,9 +60,11 @@
   #re-stage {
     position: relative;
     width: 100%;
-    max-width: 900px;
+    /* Fill the available space in both axes (3:1 aspect), capped before upscale blur */
+    max-width: min(1200px, max(320px, calc((100vh - 300px) * 3)));
     margin: auto;
   }
+  .re-center > .re-box { width: 100%; margin: auto; }
   #re-stage img#re-preview {
     display: block;
     width: 100%;
