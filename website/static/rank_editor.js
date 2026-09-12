@@ -119,10 +119,20 @@
     document.querySelectorAll(".bg-thumb").forEach(t => t.classList.toggle("selected", t.dataset.name === name));
   }
 
+  function setBgStatus(msg) {
+    const el = $("bg-status");
+    if (el) el.textContent = msg;
+  }
+
   function refreshGallery() {
     const g = $("bg-gallery");
     if (!g) return;
-    if (!bgList.length) { g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>'; return; }
+    if (!bgList.length) {
+      g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>';
+      setBgStatus("0 backgrounds found.");
+      return;
+    }
+    setBgStatus(`${bgList.length} backgrounds loaded.`);
     g.innerHTML = bgList.map(entry => {
       // Manifest objects {id, url, thumb} or legacy filename strings.
       const id = typeof entry === "string" ? entry : entry.id;
@@ -143,7 +153,16 @@
   }
 
   async function loadBackgrounds() {
-    try { bgList = (await api("/backgrounds")).backgrounds || []; } catch (e) { bgList = []; }
+    try {
+      const res = await fetch("/api/v1/user/backgrounds", { credentials: "include" });
+      if (res.status === 401) throw new Error("Not signed in (401) — log in again.");
+      if (!res.ok) throw new Error(`Request failed (HTTP ${res.status}).`);
+      const d = await res.json();
+      bgList = d.backgrounds || [];
+    } catch (e) {
+      bgList = [];
+      setBgStatus(`Could not load backgrounds: ${e.message || e}`);
+    }
     refreshGallery();
   }
 
@@ -250,6 +269,7 @@
       if (typeof console !== "undefined") console.error("rank-editor backgrounds failed:", e);
       const g = $("bg-gallery");
       if (g) g.innerHTML = '<div class="re-gallery-empty">Could not load backgrounds.</div>';
+      setBgStatus(`Could not load backgrounds: ${e.message || e}`);
     }
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
