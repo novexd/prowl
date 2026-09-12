@@ -11,7 +11,7 @@
       xp_value: { enabled: true, x: null, y: null },
       rank: { enabled: true, x: null, y: null },
       xp_bar: { enabled: true, x: null, y: null, width: null, height: 14 },
-      xp_ratio: { enabled: true, x: null, y: null },
+      xp_ratio: { enabled: true },
     },
   };
 
@@ -21,12 +21,11 @@
     config: JSON.parse(JSON.stringify(DEFAULTS)),
     loaded: {},
     dirty: false,
-    dragging: null,
     bgImages: {},
   };
 
-  const card = document.getElementById("rc-card");
-  const overlays = document.getElementById("rc-overlays");
+  let editor = null;
+  let bgList = [];
 
   const $ = (id) => document.getElementById(id);
   const api = (path, opts) => {
@@ -46,213 +45,211 @@
     return "#" + to(c[0]) + to(c[1]) + to(c[2]);
   }
 
-  // ---- logical (card-space) helpers ----
-  function pctOfLogical(logical, total) {
-    return (logical / total) * 100;
-  }
-  function logicalToCss(x, y, w, h) {
-    return {
-      left: pctOfLogical(x, CV_W) + "%",
-      top: pctOfLogical(y, CV_H) + "%",
-      width: pctOfLogical(w, CV_W) + "%",
-      height: pctOfLogical(h, CV_H) + "%",
-    };
-  }
-
-  function layout() {
-    const e = state.config.elements;
-    const avSize = e.avatar.size || 180;
-    const avatarX = e.avatar.x != null ? e.avatar.x : 54;
-    const avatarY = e.avatar.y != null ? e.avatar.y : 60;
-    const textX = avatarX + avSize + 24;
-    const textY = avatarY + 12;
-    const xpValueY = textY + 42;
-    const barX = e.xp_bar.x != null ? e.xp_bar.x : textX;
-    const barY = e.xp_bar.y != null ? e.xp_bar.y : avatarY + avSize - 40;
-    const barW = e.xp_bar.width != null ? e.xp_bar.width : 840 - (avSize + 120);
-    const barH = e.xp_bar.height || 14;
-    return { e, avSize, avatarX, avatarY, textX, textY, xpValueY, barX, barY, barW, barH };
-  }
-
-  function fmt(n) { return Number(n).toLocaleString(); }
-
-  function renderCard() {
-    const e = state.config.elements;
-    const L = layout();
-
-    // background
-    const bg = $("rc-bg");
-    bg.style.background = e.panel.enabled ? "rgba(10,10,16,.65)" : "transparent";
-    bg.style.display = "block";
-
-    // panel
-    $("rc-panel").style.display = e.panel.enabled ? "block" : "none";
-
-    // avatar
-    const avatar = $("rc-avatar");
-    avatar.style.left = pctOfLogical(L.avatarX, CV_W) + "%";
-    avatar.style.top = pctOfLogical(L.avatarY, CV_H) + "%";
-    avatar.style.width = pctOfLogical(L.avSize, CV_W) + "%";
-    avatar.style.height = pctOfLogical(L.avSize, CV_W) + "%";
-    avatar.style.display = e.avatar.enabled ? "block" : "none";
-    avatar.src = SAMPLE.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
-
-    const primary = rgbToHex(state.config.primary_color);
-    const accent = rgbToHex(state.config.accent_color);
-
-    // name + level
-    const nameEl = $("rc-name");
-    nameEl.style.left = pctOfLogical(e.name.x != null ? e.name.x : L.textX, CV_W) + "%";
-    nameEl.style.top = pctOfLogical(e.name.y != null ? e.name.y : L.textY, CV_H) + "%";
-    nameEl.style.color = accent;
-    nameEl.style.display = e.name.enabled ? "flex" : "none";
-    $("rc-name-text").textContent = SAMPLE.displayName || "User";
-    $("rc-level").textContent = `● ${SAMPLE.level}`;
-    $("rc-level").style.color = accent;
-
-    // xp value
-    const xpValue = $("rc-xpvalue");
-    xpValue.style.left = pctOfLogical(e.xp_value.x != null ? e.xp_value.x : L.textX, CV_W) + "%";
-    xpValue.style.top = pctOfLogical(e.xp_value.y != null ? e.xp_value.y : L.xpValueY, CV_H) + "%";
-    xpValue.style.color = accent;
-    xpValue.style.display = e.xp_value.enabled ? "block" : "none";
-    xpValue.textContent = `${fmt(SAMPLE.xp)} XP`;
-    if (e.xp_value.x != null) xpValue.style.left = pctOfLogical(e.xp_value.x, CV_W) + "%";
-    if (e.xp_value.y != null) xpValue.style.top = pctOfLogical(e.xp_value.y, CV_H) + "%";
-
-    // rank (right-aligned to bar right by default)
-    const rankEl = $("rc-rank");
-    rankEl.style.top = pctOfLogical(L.barY - 24, CV_H) + "%";
-    rankEl.style.color = primary;
-    rankEl.style.display = e.rank.enabled ? "block" : "none";
-    rankEl.textContent = `#${SAMPLE.rank} of ${fmt(SAMPLE.totalMembers)}`;
-    if (e.rank.x != null) rankEl.style.left = pctOfLogical(e.rank.x, CV_W) + "%";
-    if (e.rank.y != null) rankEl.style.top = pctOfLogical(e.rank.y, CV_H) + "%";
-
-    // bar
-    const levelXp = 100 * SAMPLE.level + 50 * (SAMPLE.level - 1);
-    const nextXp = 100 * (SAMPLE.level + 1) + 50 * SAMPLE.level;
-    const progress = Math.max(0, Math.min(1, (SAMPLE.xp - levelXp) / Math.max(1, nextXp - levelXp)));
-    const bar = $("rc-bar");
-    bar.style.left = pctOfLogical(L.barX, CV_W) + "%";
-    bar.style.top = pctOfLogical(L.barY, CV_H) + "%";
-    bar.style.width = pctOfLogical(L.barW, CV_W) + "%";
-    bar.style.height = pctOfLogical(L.barH, CV_H) + "%";
-    bar.style.display = e.xp_bar.enabled ? "block" : "none";
-    $("rc-bar-fill").style.width = (progress * 100) + "%";
-    $("rc-bar-fill").style.background = primary;
-
-    // xp ratio
-    const nextLevelXp = SAMPLE.xp + SAMPLE.xpNeeded > 0 ? SAMPLE.xp + SAMPLE.xpNeeded : nextXp;
-    const ratio = $("rc-xpratio");
-    ratio.style.left = pctOfLogical(L.barX, CV_W) + "%";
-    ratio.style.top = pctOfLogical(L.barY + L.barH + 8, CV_H) + "%";
-    ratio.style.color = accent;
-    ratio.style.display = e.xp_ratio.enabled ? "block" : "none";
-    ratio.textContent = `${fmt(SAMPLE.xp)} / ${fmt(nextLevelXp)} XP`;
-    if (e.xp_ratio.x != null) ratio.style.left = pctOfLogical(e.xp_ratio.x, CV_W) + "%";
-    if (e.xp_ratio.y != null) ratio.style.top = pctOfLogical(e.xp_ratio.y, CV_H) + "%";
-
-    applyBackgroundStyle();
-  }
-
-  // ---- scale-aware coordinate conversion ----
-  function cardScale() {
-    const cr = card.getBoundingClientRect();
-    // displayed size vs logical size
-    return { sx: CV_W / cr.width, sy: CV_H / cr.height, cr };
-  }
-  // convert a viewport point to logical card coords
-  function toLogical(clientX, clientY) {
-    const s = cardScale();
-    const crect = s.cr;
-    return { x: (clientX - crect.left) * s.sx, y: (clientY - crect.top) * s.sy };
-  }
-
-  // ---- overlay positioning via measured getBoundingClientRect ----
-  const HOT_KEYS = ["panel", "avatar", "name", "xp_value", "rank", "xp_bar", "xp_ratio"];
-  const LABELS = {
+  const EL_LABELS = {
     panel: "Panel", avatar: "Avatar", name: "Name", xp_value: "XP value",
     rank: "Rank", xp_bar: "XP bar", xp_ratio: "XP ratio",
   };
 
-  function measureOverlays() {
-    overlays.innerHTML = "";
-    const crect = card.getBoundingClientRect();
-    HOT_KEYS.forEach(key => {
-      const el = $(`rc-${key === "xp_value" ? "xpvalue" : key === "xp_ratio" ? "xpratio" : key === "xp_bar" ? "bar" : key}`);
-      if (!el || el.style.display === "none") return;
-      const er = el.getBoundingClientRect();
-      const left = er.left - crect.left;
-      const top = er.top - crect.top;
-      const w = er.width;
-      const h = er.height;
-      const cell = document.createElement("div");
-      cell.className = "rc-hot";
-      cell.style.left = left + "px";
-      cell.style.top = top + "px";
-      cell.style.width = w + "px";
-      cell.style.height = h + "px";
-      cell.dataset.el = key;
-      const lbl = document.createElement("span"); lbl.className = "rc-label"; lbl.textContent = LABELS[key];
-      const handle = document.createElement("div"); handle.className = "rc-handle"; handle.dataset.el = key;
-      cell.appendChild(lbl); cell.appendChild(handle);
-      overlays.appendChild(cell);
+  const EL_STYLES = {
+    avatar: { width: "180px", height: "180px", borderRadius: "50%", objectFit: "cover" },
+    name: { color: "#60a5fa", fontSize: "32px", fontWeight: "700" },
+    xp_value: { color: "#60a5fa", fontSize: "18px" },
+    rank: { color: "#ffffff", fontSize: "22px", fontWeight: "700" },
+    xp_bar: { height: "14px", borderRadius: "7px", background: "rgba(20,20,28,.6)", overflow: "hidden" },
+    xp_ratio: { color: "#60a5fa", fontSize: "16px" },
+  };
+
+  const EL_TEXT = {
+    avatar: null,
+    name: (s) => s.displayName + " ● " + s.level,
+    xp_value: (s) => s.xp.toLocaleString() + " XP",
+    rank: (s) => "#" + s.rank + " of " + s.totalMembers.toLocaleString(),
+    xp_bar: null,
+    xp_ratio: (s) => s.xp.toLocaleString() + " / " + (s.xp + s.xpNeeded).toLocaleString() + " XP",
+  };
+
+  const DEFAULT_ORIGINS = {
+    avatar: { x: 54, y: 60 },
+    name: { x: 274, y: 72 },
+    xp_value: { x: 274, y: 114 },
+    rank: { x: 514, y: 216 },
+    xp_bar: { x: 274, y: 216 },
+    xp_ratio: { x: 274, y: 238 },
+  };
+
+  function parseStyleNum(val) {
+    const n = parseInt(val, 10);
+    return isNaN(n) ? null : n;
+  }
+
+  function initGrapesJS() {
+    const root = document.getElementById("gjs");
+    if (editor) {
+      editor.destroy();
+      editor = null;
+    }
+
+    editor = grapesjs.init({
+      container: root,
+      width: "auto",
+      height: 300,
+      storageManager: false,
+      panels: { defaults: [] },
+      deviceManager: { devices: [{ name: "Card", width: CV_W, height: CV_H }] },
+      blockManager: {
+        blocks: Object.keys(EL_LABELS)
+          .filter((k) => k !== "panel")
+          .map((type) => ({
+            id: type,
+            label: EL_LABELS[type],
+            category: "Elements",
+            content: { type, active: true },
+          })),
+      },
+      canvas: {
+        styles: [
+          `.gjs-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
+          `.gjs-cv-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
+          `.gjs-drop-area { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
+          `.gjs-drop-zone { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
+        ],
+      },
+    });
+
+    const Components = editor.Components;
+
+    Object.entries(EL_LABELS).forEach(([type]) => {
+      Components.addType(type, {
+        model: {
+          defaults: {
+            name: EL_LABELS[type],
+            tagName: type === "avatar" ? "img" : "div",
+            draggable: true,
+            resizable: {
+              width: type === "avatar" || type === "xp_bar",
+              height: type === "avatar",
+              minDim: 10,
+            },
+            style: { ...EL_STYLES[type] },
+            active: true,
+          },
+        },
+        view: {
+          onRender: function() {
+            const el = this.el;
+            if (type === "avatar") {
+              el.src = SAMPLE.avatarUrl;
+            } else {
+              const textFn = EL_TEXT[type];
+              if (textFn) el.textContent = textFn(SAMPLE);
+            }
+            if (type === "xp_bar") {
+              const inner = document.createElement("div");
+              inner.style.height = "100%";
+              inner.style.width = "40%";
+              inner.style.background = "#ffffff";
+              inner.style.borderRadius = "7px";
+              el.appendChild(inner);
+            }
+          },
+        },
+      });
+    });
+
+    const wrapper = editor.getWrapper();
+    wrapper.setStyle({ position: "relative", background: getBgStyle(), backgroundSize: "cover", backgroundPosition: "center" });
+
+    if (state.config.elements.panel.enabled) {
+      editor.addComponent({
+        type: "panel",
+        tagName: "div",
+        style: { position: "absolute", inset: "0", borderRadius: "12px", background: "rgba(10,10,16,.65)" },
+        active: false,
+      });
+    }
+
+    loadElementsToCanvas();
+
+    editor.on("component:dragend", () => { state.dirty = true; });
+    editor.on("component:resizestop", () => { state.dirty = true; });
+    editor.on("style:change:position", () => { state.dirty = true; });
+  }
+
+  function getBgStyle() {
+    const bg = state.config.background;
+    if (bg === "random" || bg === null || bg === "solid") return "#181a1e";
+    return `url(/api/v1/user/backgrounds/${encodeURIComponent(bg)})`;
+  }
+
+  function loadElementsToCanvas() {
+    const e = state.config.elements;
+
+    Object.entries(e).forEach(([key, cfg]) => {
+      if (!cfg.enabled) return;
+      if (key === "panel") return;
+
+      const x = cfg.x != null ? cfg.x : DEFAULT_ORIGINS[key].x;
+      const y = cfg.y != null ? cfg.y : DEFAULT_ORIGINS[key].y;
+
+      const style = {
+        position: "absolute",
+        left: x + "px",
+        top: y + "px",
+      };
+
+      if (key === "avatar" && cfg.size != null) {
+        style.width = cfg.size + "px";
+        style.height = cfg.size + "px";
+      }
+
+      if (key === "xp_bar") {
+        if (cfg.width != null) style.width = cfg.width + "px";
+        if (cfg.height != null) style.height = cfg.height + "px";
+      }
+
+      editor.addComponent({ type: key, style, active: true });
     });
   }
 
-  // ---- drag handling ----
-  let dragInfo = null;
-  overlays.addEventListener("mousedown", (ev) => {
-    const handle = ev.target.closest(".rc-handle");
-    if (!handle) return;
-    ev.preventDefault();
-    const key = handle.dataset.el;
-    const el = state.config.elements[key];
-    if (!el) return;
-    const start = toLogical(ev.clientX, ev.clientY);
-    const baseX = el.x != null ? el.x : (el.y != null ? null : null) || defaultOrigin(key);
-    dragInfo = { key, startX: el.x != null ? el.x : defaultOrigin(key).x, startY: el.y != null ? el.y : defaultOrigin(key).y, start };
-    ev.target.closest(".rc-hot").classList.add("dragging");
-  });
+  function serializeToConfig() {
+    const components = editor.getComponents();
+    components.each((model) => {
+      const type = model.get("type");
+      if (!type || !EL_LABELS[type]) return;
 
-  document.addEventListener("mousemove", (ev) => {
-    if (!dragInfo) return;
-    const cur = toLogical(ev.clientX, ev.clientY);
-    const el = state.config.elements[dragInfo.key];
-    el.x = dragInfo.startX + (cur.x - dragInfo.start.x);
-    el.y = dragInfo.startY + (cur.y - dragInfo.start.y);
-    el.x = Math.max(0, Math.min(CV_W, el.x));
-    el.y = Math.max(0, Math.min(CV_H, el.y));
-    state.dirty = true;
-    renderCard();
-    measureOverlays();
-  });
-  document.addEventListener("mouseup", () => {
-    if (dragInfo) {
-      const el = state.config.elements[dragInfo.key];
-      // snap back to default if near origin
-      const origin = defaultOrigin(dragInfo.key);
-      if (Math.abs(el.x - origin.x) < 6 && Math.abs(el.y - origin.y) < 6) { el.x = null; el.y = null; }
-      dragInfo = null;
-      document.querySelectorAll(".rc-hot").forEach(n => n.classList.remove("dragging"));
-    }
-  });
+      const left = parseStyleNum(model.style("left"));
+      const top = parseStyleNum(model.style("top"));
+      const width = parseStyleNum(model.style("width"));
+      const height = parseStyleNum(model.style("height"));
 
-  function defaultOrigin(key) {
-    const L = layout();
-    switch (key) {
-      case "avatar": return { x: 54, y: 60 };
-      case "name": return { x: L.textX, y: L.textY };
-      case "xp_value": return { x: L.textX, y: L.xpValueY };
-      case "rank": return { x: Math.max(L.barX, L.barX + L.barW - 200), y: L.barY - 24 };
-      case "xp_bar": return { x: L.barX, y: L.barY };
-      case "xp_ratio": return { x: L.barX, y: L.barY + L.barH + 8 };
-      default: return { x: 0, y: 0 };
+      const el = state.config.elements[type];
+      if (!el) return;
+
+      el.enabled = model.isVisible() !== false;
+
+      const origin = DEFAULT_ORIGINS[type] || { x: 0, y: 0 };
+      el.x = (left != null && Math.abs(left - origin.x) >= 6) ? left : null;
+      el.y = (top != null && Math.abs(top - origin.y) >= 6) ? top : null;
+
+      if (type === "avatar") {
+        el.size = (width != null && Math.abs(width - 180) >= 6) ? width : null;
+      }
+      if (type === "xp_bar") {
+        const defaultW = 400;
+        el.width = (width != null && Math.abs(width - defaultW) >= 6) ? width : null;
+        if (height != null) el.height = height;
+      }
+    });
+
+    const bgStyle = editor.getWrapper().getStyle();
+    const bgMatch = bgStyle.match(/url\(['"]?([^'")]+)['"]?\)/);
+    if (bgMatch) {
+      const url = bgMatch[1];
+      const name = url.replace("/api/v1/user/backgrounds/", "");
+      if (name) state.config.background = name;
     }
   }
 
-  // ---- controls ----
   function updateColorInputs() {
     $("re-color-primary").value = rgbToHex(state.config.primary_color);
     $("re-color-accent").value = rgbToHex(state.config.accent_color);
@@ -260,11 +257,22 @@
 
   function bindToggles() {
     document.querySelectorAll('input[data-el]').forEach(inp => {
-      inp.checked = state.config.elements[inp.dataset.el].enabled;
+      const elKey = inp.dataset.el;
+      inp.checked = state.config.elements[elKey].enabled;
       inp.onchange = () => {
-        const el = state.config.elements[inp.dataset.el];
+        const el = state.config.elements[elKey];
         el.enabled = inp.checked;
-        state.dirty = true; renderCard(); measureOverlays();
+
+        if (editor) {
+          const components = editor.getComponents();
+          components.each((model) => {
+            if (model.get("type") === elKey) {
+              model.setVisible(inp.checked);
+            }
+          });
+        }
+
+        state.dirty = true;
       };
     });
   }
@@ -272,12 +280,13 @@
   $("re-color-primary").addEventListener("input", (ev) => {
     state.config.primary_color = hexToRgb(ev.target.value);
     $("re-primary-swatch").style.setProperty("--c", ev.target.value);
-    state.dirty = true; renderCard(); measureOverlays();
+    state.dirty = true;
   });
+
   $("re-color-accent").addEventListener("input", (ev) => {
     state.config.accent_color = hexToRgb(ev.target.value);
     $("re-accent-swatch").style.setProperty("--c", ev.target.value);
-    state.dirty = true; renderCard(); measureOverlays();
+    state.dirty = true;
   });
 
   $("re-bg-random").addEventListener("click", () => {
@@ -285,24 +294,26 @@
     $("re-bg-custom").value = "";
     $("re-bg-custom").disabled = false;
     markBgSelected(null);
-    state.dirty = true; renderCard(); measureOverlays();
+    updateCanvasBg();
   });
+
   $("re-bg-solid").addEventListener("click", () => {
     state.config.background = null;
     $("re-bg-custom").value = "";
     $("re-bg-custom").disabled = true;
     markBgSelected("solid");
-    renderCard(); measureOverlays();
+    updateCanvasBg();
   });
 
-  let bgList = [];
   async function loadBackgrounds() {
     try { bgList = (await api("/backgrounds")).backgrounds || []; } catch (e) { bgList = []; }
     refreshGallery();
   }
+
   function markBgSelected(name) {
     document.querySelectorAll(".bg-thumb").forEach(t => t.classList.toggle("selected", t.dataset.name === name));
   }
+
   function refreshGallery() {
     const g = $("bg-gallery");
     if (!bgList.length) { g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>'; return; }
@@ -315,7 +326,7 @@
         $("re-bg-custom").value = state.config.background;
         $("re-bg-custom").disabled = false;
         markBgSelected(state.config.background);
-        state.dirty = true; renderCard(); measureOverlays();
+        updateCanvasBg();
       });
     });
   }
@@ -324,15 +335,21 @@
     const v = $("re-bg-custom").value.trim();
     if (v) { state.config.background = v; markBgSelected(null); }
     else { state.config.background = "random"; markBgSelected(null); }
-    state.dirty = true; renderCard(); measureOverlays();
+    updateCanvasBg();
   });
+
+  function updateCanvasBg() {
+    if (!editor) return;
+    const bg = getBgStyle();
+    editor.getWrapper().setStyle({ position: "relative", background: bg, backgroundSize: "cover", backgroundPosition: "center" });
+  }
 
   async function loadPreview() {
     try {
       const d = await api("/rank-preview");
       if (d.display_name) SAMPLE.displayName = d.display_name;
       if (d.avatar_url) SAMPLE.avatarUrl = d.avatar_url;
-    } catch (e) { /* keep defaults */ }
+    } catch (e) { }
   }
 
   async function loadSettings() {
@@ -349,17 +366,17 @@
         state.config.elements[name] = { ...DEFAULTS.elements[name], ...(saved.elements && saved.elements[name] || {}) };
       }
       state.loaded = JSON.parse(JSON.stringify(state.config));
-      $("re-bg-custom").value = (typeof state.config.background === "string" && state.config.background && state.config.background !== "random") ? state.config.background : "";
-      $("re-bg-custom").disabled = !state.config.background || state.config.background === "random" || state.config.background === "solid";
-      if (typeof state.config.background === "string" && state.config.background && state.config.background !== "random") {
-        markBgSelected(state.config.background);
-      } else if (state.config.background === null) {
-        markBgSelected("solid");
-      }
-    } catch (e) { /* keep defaults */ }
+      const bgInput = $("re-bg-custom");
+      const bgVal = typeof state.config.background === "string" && state.config.background && state.config.background !== "random";
+      bgInput.value = bgVal ? state.config.background : "";
+      bgInput.disabled = !state.config.background || state.config.background === "random" || state.config.background === "solid";
+      if (bgVal) markBgSelected(state.config.background);
+      else if (state.config.background === null) markBgSelected("solid");
+    } catch (e) { }
   }
 
   $("re-save").addEventListener("click", async () => {
+    serializeToConfig();
     const btn = $("re-save");
     btn.disabled = true; btn.textContent = "Saving...";
     try {
@@ -383,44 +400,22 @@
   $("re-reset").addEventListener("click", () => {
     if (!confirm("Reset your rank card to defaults? This can't be undone.")) return;
     state.config = JSON.parse(JSON.stringify(DEFAULTS));
-    state.dirty = true; renderCard(); measureOverlays();
-    bindToggles(); updateColorInputs();
-    $("re-bg-custom").value = ""; $("re-bg-custom").disabled = false; markBgSelected(null);
-  });
-
-  // ---- background image loading (preview only) ----
-  function applyBackgroundStyle() {
-    const bg = $("rc-bg");
-    const bgName = state.config.background;
-    if (bgName && typeof bgName === "string" && bgName !== "random") {
-      if (bgName === "solid") { bg.style.background = "#181a1e"; }
-      else {
-        const img = state.bgImages[bgName];
-        if (img && img.complete) { bg.style.background = `url(${img.src})`; bg.style.backgroundSize="cover"; bg.style.backgroundPosition="center"; }
-        else { bg.style.background = "#181a1e"; loadBgImage(bgName); }
-      }
-    } else {
-      bg.style.background = "#181a1e"; // random -> placeholder gradient in preview
-    }
-  }
-  async function loadBgImage(name) {
-    if (state.bgImages[name]) { applyBackgroundStyle(); return; }
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => { state.bgImages[name] = img; applyBackgroundStyle(); };
-    img.onerror = () => { state.bgImages[name] = null; };
-    img.src = `/api/v1/user/backgrounds/${encodeURIComponent(name)}`;
-    state.bgImages[name] = img;
-  }
-
-  // init
-  (async () => {
-    await loadSettings();
+    state.dirty = true;
+    initGrapesJS();
     bindToggles();
     updateColorInputs();
+    $("re-bg-custom").value = ""; $("re-bg-custom").disabled = false; markBgSelected(null);
+    updateCanvasBg();
+  });
+
+  async function init() {
+    await loadSettings();
+    updateColorInputs();
+    bindToggles();
+    await loadBackgrounds();
     await loadPreview();
-    renderCard();
-    measureOverlays();
-    loadBackgrounds();
-  })();
+    initGrapesJS();
+  }
+
+  init();
 })();

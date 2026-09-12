@@ -249,7 +249,7 @@ CSP = (
     "https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com "
     "https://cdn.jsdelivr.net https://www.google.com https://www.gstatic.com "
     "https://challenges.cloudflare.com; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdn.jsdelivr.net; "
     "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone; "
     "connect-src 'self' https://api.prowlbot.xyz https://discord.com "

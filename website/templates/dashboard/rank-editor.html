@@ -1,8 +1,8 @@
 {% extends "dashboard/base_minimal.html" %}
 {% block styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/grapesjs@0.24.1/dist/css/grapes.min.css" />
 <style>
-  /* === White/light editor theme === */
-  .re-root { color: var(--text,#111827); }
+  .re-root { color: var(--text,#111827); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   .re-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
   .re-title { font-size:1.6rem; font-weight:800; margin:0; }
   .re-subtitle { color: var(--text-dim,#6b7280); font-size:.85rem; margin-top:.25rem; }
@@ -58,17 +58,6 @@
   .re-switch input:checked + .re-slider::after { transform:translateX(18px); }
   .re-switch-label { font-size:.82rem; color:var(--text,#111827); }
 
-  .re-color-row { display:flex; align-items:center; gap:.7rem; margin-bottom:.8rem; }
-  .re-color-label { font-size:.78rem; color:var(--text-dim,#6b7280); min-width:140px; }
-  .re-color { display:flex; align-items:center; gap:.4rem; }
-  .re-color-swatch {
-    width:36px; height:36px; border-radius:8px; border:1px solid var(--card-border,#e5e7eb);
-    background:var(--c,#fff); box-shadow:0 1px 2px rgba(0,0,0,.08); flex-shrink:0;
-  }
-  .re-color-input { width:40px; height:32px; padding:0; border:none; background:none; cursor:pointer; }
-  .re-color-input::-webkit-color-swatch-wrapper { padding:2px; }
-  .re-color-input::-webkit-color-swatch { border:none; border-radius:6px; }
-
   .re-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:.6rem; margin-bottom:.6rem; }
   .re-gallery .bg-thumb {
     width:100%; height:56px; object-fit:cover; border:2px solid transparent; border-radius:8px; cursor:pointer;
@@ -83,28 +72,17 @@
     background:#fff; border:1px solid var(--card-border,#e5e7eb); border-radius:14px; padding:1rem;
     box-shadow:0 4px 14px rgba(15,23,42,.06);
   }
-  .rc-card { position:relative; width:600px; height:200px; max-width:100%; aspect-ratio:3/1; }
+  .rc-card { position:relative; width:900px; height:300px; max-width:100%; }
   .re-hint { color:var(--text-dim,#6b7280); font-size:.76rem; text-align:center; margin-top:.2rem; }
 
-  /* rank card internals (dark card retained) */
-  .rc-bg { position:absolute; inset:0; border-radius:12px; background:#181a1e; }
-  .rc-panel { position:absolute; inset:0; border-radius:12px; background:rgba(10,10,16,.65); }
-  .rc-avatar { position:absolute; width:180px; height:180px; object-fit:cover; border-radius:50%; }
-  .rc-name { position:absolute; display:inline-flex; align-items:center; font-weight:700; font-size:32px; white-space:nowrap; }
-  .rc-level { color:#fff; opacity:.85; margin-left:6px; }
-  .rc-xpvalue { position:absolute; font-size:18px; color:#ffffffcc; white-space:nowrap; }
-  .rc-rank { position:absolute; font-weight:700; font-size:22px; white-space:nowrap; color:#fff; }
-  .rc-bar { position:absolute; height:14px; border-radius:7px; background:rgba(20,20,28,.6); overflow:hidden; }
-  .rc-bar-fill { height:100%; width:0%; border-radius:7px; background:#fff; }
-  .rc-xpratio { position:absolute; font-size:16px; color:#ffffffcc; white-space:nowrap; }
-
-  /* editor overlays (NOT part of the card output) */
-  .rc-overlays { position:absolute; inset:0; pointer-events:none; }
-  .rc-hot { position:absolute; border:2px dashed rgba(99,102,245,.55); border-radius:8px; pointer-events:auto; cursor:grab; background:rgba(99,102,245,.08); box-sizing:border-box; }
-  .rc-hot:hover { background:rgba(99,102,245,.15); }
-  .rc-hot.dragging { cursor:grabbing; }
-  .rc-hot .rc-handle { position:absolute; right:-8px; bottom:-8px; width:14px; height:14px; background:#6366f5; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:nwse-resize; pointer-events:auto; }
-  .rc-hot .rc-label { position:absolute; left:4px; top:4px; font-size:10px; color:rgba(99,102,245,.9); text-transform:uppercase; letter-spacing:.03em; }
+  /* GrapesJS canvas */
+  #gjs { height:300px; width:100%; border:1px solid var(--card-border,#e5e7eb); border-radius:12px; }
+  .gjs-editor-row { background:#fff !important; }
+  .gjs-panels { background:#fff !important; }
+  .gjs-panel { background:#fff !important; }
+  .gjs-toolbar { background:#f8fafc !important; }
+  .gjs-block { background:#fff !important; border:1px solid var(--card-border,#e5e7eb) !important; }
+  .gjs-selected { outline:2px solid var(--accent,#6366f1) !important; }
 </style>
 {% endblock %}
 {% block content %}
@@ -112,7 +90,7 @@
   <div class="re-header">
     <div>
       <h1 class="re-title">Rank Card Editor</h1>
-      <p class="re-subtitle">Customize how your rank card looks when anyone runs /rank.</p>
+      <p class="re-subtitle">Drag elements on the canvas to reposition them. Changes save to your per-user rank card config.</p>
     </div>
     <div class="re-header-actions">
       <button class="re-btn re-btn-ghost" id="re-reset"><i data-lucide="rotate-ccw"></i> Reset</button>
@@ -122,32 +100,20 @@
 
   <div class="re-main">
     <div class="re-panel" style="flex:1; min-width:0;">
-      <div class="re-panel-title">Live Preview</div>
-      <div class="re-preview-chrome">
-        <div class="rc-card" id="rc-card">
-          <div class="rc-bg" id="rc-bg"></div>
-          <div class="rc-panel" id="rc-panel"></div>
-          <img class="rc-avatar" id="rc-avatar" alt="avatar" />
-          <div class="rc-name" id="rc-name"><span id="rc-name-text"></span><span class="rc-level" id="rc-level"></span></div>
-          <div class="rc-xpvalue" id="rc-xpvalue"></div>
-          <div class="rc-rank" id="rc-rank"></div>
-          <div class="rc-bar" id="rc-bar"><div class="rc-bar-fill" id="rc-bar-fill"></div></div>
-          <div class="rc-xpratio" id="rc-xpratio"></div>
-          <div class="rc-overlays" id="rc-overlays"></div>
-        </div>
-      </div>
-      <p class="re-hint">Drag any highlighted element in the preview to reposition it. Toggle visibility in the controls.</p>
+      <div class="re-panel-title">Canvas</div>
+      <div id="gjs"></div>
+      <p class="re-hint">Drag elements to reposition. Use Ctrl/Cmd+Z to undo.</p>
     </div>
 
     <div class="re-controls-pane">
       <div class="re-panel">
         <div class="re-panel-title">Background</div>
-        <div class="re-bg-actions" style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+        <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
           <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
           <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-solid"><i data-lucide="square"></i> Solid</button>
         </div>
         <div class="re-gallery" id="bg-gallery">
-          <div class="re-gallery-empty">No server backgrounds available.</div>
+          <div class="re-gallery-empty">Loading...</div>
         </div>
         <label class="re-field-label">Custom filename</label>
         <input type="text" class="re-input" id="re-bg-custom" placeholder="e.g. nebula.png" />
@@ -182,12 +148,12 @@
           <label class="re-switch"><input type="checkbox" data-el="xp_bar" checked /><span class="re-slider"></span><span class="re-switch-label">XP bar</span></label>
           <label class="re-switch"><input type="checkbox" data-el="xp_ratio" checked /><span class="re-slider"></span><span class="re-switch-label">XP ratio text</span></label>
         </div>
-        <p class="re-hint">Click and drag an element in the preview to reposition it.</p>
       </div>
     </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/rank_editor.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/grapesjs@0.24.1/dist/grapes.min.js"></script>
+<script src="/static/rank_editor.js?v=3"></script>
 {% endblock %}
