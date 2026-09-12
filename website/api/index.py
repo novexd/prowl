@@ -1225,7 +1225,6 @@ async def dashboard(request: Request, guild_id: str, panel: str = "overview"):
         "autoresponder", "settings", "raid_protection", "profile",
         "aliases", "bot_profile", "reminders", "afk", "giveaways",
         "birthday", "activity_roles", "badges", "temp_channels", "frenzy", "more",
-        "rank-editor",
     ]
     if panel not in valid_panels:
         panel = "overview"
@@ -3409,7 +3408,6 @@ LEVELING_DEFAULTS = {
     "level_roles": {},
     "level_up_message": "{user} reached **level {level}**!",
     "level_up_message_mode": "basic", "level_up_embed": {},
-    "rank_card": {},
 }
 
 
@@ -3518,8 +3516,69 @@ def _background_dir():
     return None
 
 
-@app.get("/api/v1/leveling/{guild_id}/backgrounds")
-async def leveling_backgrounds(guild_id: str, request: Request):
+def _background_path(filename: str):
+    bg_dir = _background_dir()
+    if bg_dir is None:
+        return None
+    safe = (bg_dir / filename).resolve()
+    try:
+        safe.relative_to(bg_dir.resolve())
+    except ValueError:
+        return None
+    if not safe.is_file() or safe.suffix.lower() not in _BACKGROUND_EXTS:
+        return None
+    return safe
+
+
+def _avatar_url(user: dict) -> str:
+    avatar = user.get("avatar_url") or user.get("avatar")
+    if avatar:
+        if str(avatar).startswith("http"):
+            return str(avatar)
+        return f"https://cdn.discordapp.com/avatars/{user.get('id')}/{avatar}.png?size=128"
+    return f"https://cdn.discordapp.com/embed/avatars/0.png"
+
+
+@app.get("/api/v1/user/rank-card")
+async def user_rank_card(request: Request):
+    user = await require_auth(request)
+    uid = str(user["id"])
+    row = await fetchrow("SELECT rank_card FROM user_rank_cards WHERE user_id = ?", uid)
+    if row and row.get("rank_card"):
+        raw = row["rank_card"]
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return {"rank_card": parsed}
+            except json.JSONDecodeError:
+                pass
+        if isinstance(raw, dict):
+            return {"rank_card": raw}
+    return {"rank_card": {}}
+
+
+@app.post("/api/v1/user/rank-card")
+async def user_rank_card_set(request: Request):
+    user = await require_auth(request)
+    uid = str(user["id"])
+    body = await request.json()
+    value = body.get("value") if isinstance(body, dict) else None
+    if not isinstance(value, dict):
+        return JSONResponse({"error": "rank_card must be an object"}, status_code=400)
+    payload = json.dumps(value)
+    ok = await execute(
+        "INSERT INTO user_rank_cards (user_id, rank_card, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT (user_id) DO UPDATE SET rank_card = ?, updated_at = ?",
+        uid, payload, time.time(), payload, time.time(),
+    )
+    if ok is None:
+        return JSONResponse({"error": "save failed"}, status_code=500)
+    return {"ok": True}
+
+
+@app.get("/api/v1/user/backgrounds")
+async def user_backgrounds(request: Request):
     await require_auth(request)
     bg_dir = _background_dir()
     if bg_dir is None:
@@ -3531,36 +3590,32 @@ async def leveling_backgrounds(guild_id: str, request: Request):
     return {"backgrounds": items}
 
 
-@app.get("/api/v1/leveling/{guild_id}/backgrounds/{filename:path}")
-async def leveling_background_file(guild_id: str, filename: str, request: Request):
+@app.get("/api/v1/user/backgrounds/{filename:path}")
+async def user_background_file(request: Request, filename: str):
     await require_auth(request)
-    bg_dir = _background_dir()
-    if bg_dir is None:
-        raise HTTPException(status_code=404, detail="backgrounds unavailable")
-    # Prevent traversal outside the background directory.
-    safe = (bg_dir / filename).resolve()
-    try:
-        safe.relative_to(bg_dir.resolve())
-    except ValueError:
-        raise HTTPException(status_code=400, detail="invalid path")
-    if not safe.is_file() or safe.suffix.lower() not in _BACKGROUND_EXTS:
+    safe = _background_path(filename)
+    if safe is None:
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(safe)
 
 
-@app.get("/api/v1/leveling/{guild_id}/role-preview")
-async def leveling_role_preview(guild_id: str, request: Request):
-    """Return a sample avatar URL + display name for the editor preview."""
-    await require_guild_access(request, guild_id)
+@app.get("/api/v1/user/rank-preview")
+async def user_rank_preview(request: Request):
+    user = await require_auth(request)
+    return {"avatar_url": _avatar_url(user), "display_name": user.get("global_name") or user.get("username") or "User"}
+
+
+@app.get("/rank-editor")
+async def rank_editor_page(request: Request):
     user = get_user(request)
-    avatar = None
-    name = "User"
-    if user and isinstance(user, dict):
-        avatar = user.get("avatar_url") or user.get("avatar")
-        name = user.get("display_name") or user.get("name") or "User"
-    if not avatar:
-        avatar = "https://cdn.discordapp.com/embed/avatars/0.png"
-    return {"avatar_url": avatar, "display_name": name}
+    if not user:
+        return RedirectResponse("/login")
+    return templates.TemplateResponse(request, "dashboard/rank-editor.html", {
+        "user": user,
+        "config": _cfg(),
+    }, headers={"Cache-Control": "no-store"})
+
+@app.get("/api/v1/leveling/{guild_id}/leaderboard")
 async def leveling_leaderboard(guild_id: str, request: Request):
     await require_guild_access(request, guild_id)
     rows = await query(

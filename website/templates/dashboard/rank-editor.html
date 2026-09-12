@@ -1,158 +1,193 @@
-{% extends "dashboard/base.html" %}
-{% block content %}
-<link rel="stylesheet" href="/static/leveling.css?v=4" />
+{% extends "dashboard/base_minimal.html" %}
+{% block styles %}
 <style>
-  .re-editor-canvas-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 1rem;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    touch-action: none;
-    cursor: default;
+  /* === White/light editor theme === */
+  .re-root { color: var(--text,#111827); }
+  .re-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
+  .re-title { font-size:1.6rem; font-weight:800; margin:0; }
+  .re-subtitle { color: var(--text-dim,#6b7280); font-size:.85rem; margin-top:.25rem; }
+  .re-header-actions { display:flex; gap:.5rem; align-items:center; }
+  .re-main { display:grid; grid-template-columns: 1fr 360px; gap:1.5rem; align-items:start; }
+  @media (max-width: 880px) { .re-main { grid-template-columns: 1fr; } }
+
+  .re-btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+    border:1px solid var(--input-border,#d1d5db); border-radius:8px;
+    background:#fff; color:var(--text,#111827); font:inherit; font-weight:600;
+    padding:.55rem .9rem; font-size:.85rem; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    outline:none;
   }
-  #rank-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-    border-radius: 8px;
+  .re-btn:hover { background:#f3f4f6; }
+  .re-btn:focus-visible { box-shadow:0 0 0 3px rgba(99,102,245,.25); }
+  .re-btn-ghost { background:#fff; border-color:var(--card-border,#e5e7eb); }
+  .re-btn-ghost:hover { background:#f8fafc; }
+  .re-btn-primary { background:var(--accent,#6366f1); color:#fff; border-color:var(--accent,#6366f1); }
+  .re-btn-primary:hover { background:var(--accent-hover,#4f51e3); }
+  .re-btn-primary:disabled { opacity:.6; cursor:progress; }
+  .re-btn-sm { padding:.4rem .7rem; font-size:.78rem; }
+
+  .re-panel {
+    background:#fff; border:1px solid var(--card-border,#e5e7eb); border-radius:12px;
+    padding:1rem; box-shadow:0 1px 2px rgba(15,23,42,.04);
   }
-  .re-hotcell {
-    position: absolute;
-    border: 2px dashed rgba(139, 92, 246, 0.6);
-    border-radius: 6px;
-    background: rgba(139, 92, 246, 0.08);
-    cursor: grab;
-    box-sizing: border-box;
+  .re-panel + .re-panel { margin-top:1rem; }
+  .re-panel-title { font-size:.8rem; font-weight:700; color:var(--text-dim,#6b7280);
+    letter-spacing:.03em; text-transform:uppercase; margin-bottom:.7rem; }
+  .re-field-label { font-size:.78rem; font-weight:600; color:var(--text,#111827); margin-bottom:.3rem; display:block; }
+  .re-input {
+    width:100%; padding:.5rem .7rem; border:1px solid var(--input-border,#d1d5db); border-radius:8px;
+    background:var(--input-bg,#fff); color:var(--text,#111827); font:inherit; font-size:.85rem;
+    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
   }
-  .re-hotcell:hover { background: rgba(139, 92, 246, 0.15); }
-  .re-hotcell.re-dragging { cursor: grabbing; }
-  .re-hotcell .re-handle {
-    position: absolute;
-    right: -6px;
-    bottom: -6px;
-    width: 14px;
-    height: 14px;
-    background: #8b5cf6;
-    border-radius: 50%;
-    cursor: nwse-resize;
-    border: 2px solid #fff;
+  .re-input::placeholder { color:var(--text-dim,#9ca3af); }
+  .re-input:focus { border-color:var(--accent,#6366f1); box-shadow:0 0 0 3px rgba(99,102,245,.15); }
+
+  .re-switch { display:flex; align-items:center; gap:.6rem; cursor:pointer; padding:.3rem 0; user-select:none; }
+  .re-switch input { opacity:0; width:0; height:0; }
+  .re-slider {
+    width:40px; height:22px; border-radius:999px; background:#cbd5e1;
+    display:block; position:relative; transition:background .2s; flex-shrink:0;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.1);
   }
-  #bg-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 0.5rem;
+  .re-switch input:checked + .re-slider { background:var(--accent,#6366f5); }
+  .re-slider::after {
+    content:""; position:absolute; top:3px; left:3px; width:16px; height:16px;
+    border-radius:50%; background:#fff; transition:transform .2s;
   }
-  .bg-thumb {
-    width: 100%;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 6px;
-    border: 2px solid transparent;
-    cursor: pointer;
-    opacity: 0.6;
-  }
-  .bg-thumb.selected { border-color: #8b5cf6; opacity: 1; }
-  .bg-thumb.random-bg {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.5);
-  }
-  .re-color-row { display: flex; gap: 0.5rem; align-items: center; }
+  .re-switch input:checked + .re-slider::after { transform:translateX(18px); }
+  .re-switch-label { font-size:.82rem; color:var(--text,#111827); }
+
+  .re-color-row { display:flex; align-items:center; gap:.7rem; margin-bottom:.8rem; }
+  .re-color-label { font-size:.78rem; color:var(--text-dim,#6b7280); min-width:140px; }
+  .re-color { display:flex; align-items:center; gap:.4rem; }
   .re-color-swatch {
-    width: 34px; height: 34px; border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.15); cursor: pointer;
-    background: var(--c);
+    width:36px; height:36px; border-radius:8px; border:1px solid var(--card-border,#e5e7eb);
+    background:var(--c,#fff); box-shadow:0 1px 2px rgba(0,0,0,.08); flex-shrink:0;
   }
-  .re-preview-hint {
-    font-size: 0.72rem; color: rgba(255, 255, 255, 0.35);
-    margin-top: 0.4rem; line-height: 1.5;
+  .re-color-input { width:40px; height:32px; padding:0; border:none; background:none; cursor:pointer; }
+  .re-color-input::-webkit-color-swatch-wrapper { padding:2px; }
+  .re-color-input::-webkit-color-swatch { border:none; border-radius:6px; }
+
+  .re-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:.6rem; margin-bottom:.6rem; }
+  .re-gallery .bg-thumb {
+    width:100%; height:56px; object-fit:cover; border:2px solid transparent; border-radius:8px; cursor:pointer;
+    opacity:.7; transition:opacity .15s, border-color .15s;
   }
-  .re-section-title {
-    font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 0.5rem; letter-spacing: 0.02em;
+  .re-gallery .bg-thumb:hover { opacity:1; }
+  .re-gallery .bg-thumb.selected { border-color:var(--accent,#6366f5); opacity:1; }
+  .re-gallery-empty { color:var(--text-dim,#9ca3af); font-size:.78rem; text-align:center; padding:1rem 0; }
+
+  .re-preview-pane { display:flex; flex-direction:column; align-items:center; gap:.5rem; }
+  .re-preview-chrome {
+    background:#fff; border:1px solid var(--card-border,#e5e7eb); border-radius:14px; padding:1rem;
+    box-shadow:0 4px 14px rgba(15,23,42,.06);
   }
-  .re-element-row { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0; }
-  .re-element-row .md-toggle { margin-right: 0.5rem; }
-  #save-bar { display: none; }
+  .rc-card { position:relative; width:600px; height:200px; max-width:100%; aspect-ratio:3/1; }
+  .re-hint { color:var(--text-dim,#6b7280); font-size:.76rem; text-align:center; margin-top:.2rem; }
+
+  /* rank card internals (dark card retained) */
+  .rc-bg { position:absolute; inset:0; border-radius:12px; background:#181a1e; }
+  .rc-panel { position:absolute; inset:0; border-radius:12px; background:rgba(10,10,16,.65); }
+  .rc-avatar { position:absolute; width:180px; height:180px; object-fit:cover; border-radius:50%; }
+  .rc-name { position:absolute; display:inline-flex; align-items:center; font-weight:700; font-size:32px; white-space:nowrap; }
+  .rc-level { color:#fff; opacity:.85; margin-left:6px; }
+  .rc-xpvalue { position:absolute; font-size:18px; color:#ffffffcc; white-space:nowrap; }
+  .rc-rank { position:absolute; font-weight:700; font-size:22px; white-space:nowrap; color:#fff; }
+  .rc-bar { position:absolute; height:14px; border-radius:7px; background:rgba(20,20,28,.6); overflow:hidden; }
+  .rc-bar-fill { height:100%; width:0%; border-radius:7px; background:#fff; }
+  .rc-xpratio { position:absolute; font-size:16px; color:#ffffffcc; white-space:nowrap; }
+
+  /* editor overlays (NOT part of the card output) */
+  .rc-overlays { position:absolute; inset:0; pointer-events:none; }
+  .rc-hot { position:absolute; border:2px dashed rgba(99,102,245,.55); border-radius:8px; pointer-events:auto; cursor:grab; background:rgba(99,102,245,.08); box-sizing:border-box; }
+  .rc-hot:hover { background:rgba(99,102,245,.15); }
+  .rc-hot.dragging { cursor:grabbing; }
+  .rc-hot .rc-handle { position:absolute; right:-8px; bottom:-8px; width:14px; height:14px; background:#6366f5; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:nwse-resize; pointer-events:auto; }
+  .rc-hot .rc-label { position:absolute; left:4px; top:4px; font-size:10px; color:rgba(99,102,245,.9); text-transform:uppercase; letter-spacing:.03em; }
 </style>
-<div id="leveling-wrap">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;animation-delay:.05s;">
+{% endblock %}
+{% block content %}
+<div class="re-root">
+  <div class="re-header">
     <div>
-      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Rank Card Editor</h1>
-      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Design your /rank card: drag elements, pick a background, set colors.</p>
+      <h1 class="re-title">Rank Card Editor</h1>
+      <p class="re-subtitle">Customize how your rank card looks when anyone runs /rank.</p>
     </div>
-    <div style="display:flex;gap:0.5rem;align-items:center;">
-      <button class="md-action-btn" id="re-save" style="justify-content:center;">Save</button>
-      <button class="md-action-btn" id="re-reset" style="justify-content:center;color:rgba(255,255,255,0.4);">Reset</button>
+    <div class="re-header-actions">
+      <button class="re-btn re-btn-ghost" id="re-reset"><i data-lucide="rotate-ccw"></i> Reset</button>
+      <button class="re-btn re-btn-primary" id="re-save"><i data-lucide="save"></i> Save</button>
     </div>
   </div>
 
-  <div class="md-row" style="align-items:flex-start;gap:1rem;">
-    <div class="md-section" style="flex: 1; min-width: 320px;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Live Preview</div>
-        <p class="re-preview-hint">Drag any glowing handle to reposition an element. Pick a background below.</p>
-        <div class="re-editor-canvas-wrap" id="re-canvas-wrap">
-          <canvas id="rank-canvas" width="900" height="300"></canvas>
+  <div class="re-main">
+    <div class="re-panel" style="flex:1; min-width:0;">
+      <div class="re-panel-title">Live Preview</div>
+      <div class="re-preview-chrome">
+        <div class="rc-card" id="rc-card">
+          <div class="rc-bg" id="rc-bg"></div>
+          <div class="rc-panel" id="rc-panel"></div>
+          <img class="rc-avatar" id="rc-avatar" alt="avatar" />
+          <div class="rc-name" id="rc-name"><span id="rc-name-text"></span><span class="rc-level" id="rc-level"></span></div>
+          <div class="rc-xpvalue" id="rc-xpvalue"></div>
+          <div class="rc-rank" id="rc-rank"></div>
+          <div class="rc-bar" id="rc-bar"><div class="rc-bar-fill" id="rc-bar-fill"></div></div>
+          <div class="rc-xpratio" id="rc-xpratio"></div>
+          <div class="rc-overlays" id="rc-overlays"></div>
         </div>
       </div>
+      <p class="re-hint">Drag any highlighted element in the preview to reposition it. Toggle visibility in the controls.</p>
     </div>
 
-    <div class="md-section" style="flex: 1; min-width: 280px; max-width: 340px;">
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Background</div>
-        <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
-          <button class="md-action-btn" id="re-bg-random" style="flex:1;justify-content:center;">Random</button>
-          <button class="md-action-btn" id="re-bg-none" style="flex:1;justify-content:center;">Solid</button>
+    <div class="re-controls-pane">
+      <div class="re-panel">
+        <div class="re-panel-title">Background</div>
+        <div class="re-bg-actions" style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+          <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
+          <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-solid"><i data-lucide="square"></i> Solid</button>
         </div>
-        <div id="bg-gallery">
-          <div style="text-align:center;padding:0.8rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">Loading...</div>
+        <div class="re-gallery" id="bg-gallery">
+          <div class="re-gallery-empty">No server backgrounds available.</div>
         </div>
-        <div style="margin-top:0.6rem;">
-          <div class="re-section-title">Custom filename</div>
-          <input type="text" class="md-input" id="re-bg-custom" placeholder="e.g. nebula.png" style="width:100%" />
-        </div>
+        <label class="re-field-label">Custom filename</label>
+        <input type="text" class="re-input" id="re-bg-custom" placeholder="e.g. nebula.png" />
       </div>
 
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.015);padding:1rem;margin-top:1rem;">
-        <div class="md-section-title">Colors</div>
-        <div class="re-color-row" style="margin-bottom:0.6rem;">
-          <span style="font-size:0.8rem;color:rgba(255,255,255,0.6);">Primary (text/bars)</span>
-          <input type="color" id="re-color-primary" value="#ffffff" style="width:40px;height:30px;padding:0;border:none;border-radius:4px;cursor:pointer;background:none;" />
+      <div class="re-panel">
+        <div class="re-panel-title">Colors</div>
+        <div class="re-color-row">
+          <span class="re-color-label">Primary (bars / rank)</span>
+          <div class="re-color">
+            <div class="re-color-swatch" id="re-primary-swatch" style="--c:#ffffff"></div>
+            <input type="color" class="re-color-input" id="re-color-primary" value="#ffffff" />
+          </div>
         </div>
         <div class="re-color-row">
-          <span style="font-size:0.8rem;color:rgba(255,255,255,0.6);">Accent (name/xp)</span>
-          <input type="color" id="re-color-accent" value="#ffffff" style="width:40px;height:30px;padding:0;border:none;border-radius:4px;cursor:pointer;background:none;" />
+          <span class="re-color-label">Accent (name / xp)</span>
+          <div class="re-color">
+            <div class="re-color-swatch" id="re-accent-swatch" style="--c:#ffffff"></div>
+            <input type="color" class="re-color-input" id="re-color-accent" value="#ffffff" />
+          </div>
         </div>
       </div>
 
-      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.015);padding:1rem;margin-top:1rem;">
-        <div class="md-section-title">Elements</div>
-        <div id="re-element-list">
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><span>Avatar</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><span>Name &amp; Level</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><span>XP Value</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><span>Rank</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><span>XP Bar</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><span>XP Ratio text</span></div>
-          <div class="re-element-row"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><span>Dark panel</span></div>
+      <div class="re-panel">
+        <div class="re-panel-title">Elements</div>
+        <div class="re-element-list" id="re-element-list">
+          <label class="re-switch"><input type="checkbox" data-el="panel" checked /><span class="re-slider"></span><span class="re-switch-label">Dark panel</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="avatar" checked /><span class="re-slider"></span><span class="re-switch-label">Avatar</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="name" checked /><span class="re-slider"></span><span class="re-switch-label">Name &amp; Level</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="xp_value" checked /><span class="re-slider"></span><span class="re-switch-label">XP value</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="rank" checked /><span class="re-slider"></span><span class="re-switch-label">Rank</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="xp_bar" checked /><span class="re-slider"></span><span class="re-switch-label">XP bar</span></label>
+          <label class="re-switch"><input type="checkbox" data-el="xp_ratio" checked /><span class="re-slider"></span><span class="re-switch-label">XP ratio text</span></label>
         </div>
-        <div class="re-preview-hint">Click &amp; drag an element's handle in the preview to reposition it.</div>
+        <p class="re-hint">Click and drag an element in the preview to reposition it.</p>
       </div>
     </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/rank_editor.js?v=1"></script>
+<script src="/static/rank_editor.js?v=2"></script>
 {% endblock %}

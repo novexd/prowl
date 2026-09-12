@@ -1,15 +1,6 @@
-(function () {
-  const GID = window.__GUILD_ID;
+(() => {
   const CV_W = 900, CV_H = 300;
-  const AVATAR_SIZE = 180, PADDING = 30;
-  const PANEL_X = PADDING, PANEL_Y = PADDING;
-  const PANEL_W = CV_W - 2 * PADDING, PANEL_H = CV_H - 2 * PADDING;
-  const PANEL_COLOR = [10, 10, 16, 170];
-  const PROGRESS_BG = [20, 20, 28, 190];
-  const WHITE = [255, 255, 255];
-  const SOLID_BG = [25, 25, 35];
-
-  const DEFAULT_CONFIG = {
+  const DEFAULTS = {
     background: "random",
     primary_color: [255, 255, 255],
     accent_color: [255, 255, 255],
@@ -24,468 +15,412 @@
     },
   };
 
-  // Sample display data used purely for the editor preview.
-  let SAMPLE = { displayName: "User", level: 12, xp: 2470, xpNeeded: 150, rank: 3, totalMembers: 284, avatarUrl: "https://cdn.discordapp.com/embed/avatars/0.png" };
+  const SAMPLE = { displayName: "User", level: 12, xp: 2470, xpNeeded: 150, rank: 3, totalMembers: 284, avatarUrl: "https://cdn.discordapp.com/embed/avatars/0.png" };
 
   const state = {
-    config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
+    config: JSON.parse(JSON.stringify(DEFAULTS)),
     loaded: {},
     dirty: false,
     dragging: null,
     bgImages: {},
-    avatarImg: null,
   };
 
-  const canvas = document.getElementById("rank-canvas");
-  const ctx = canvas.getContext("2d");
-  const wrap = document.getElementById("re-canvas-wrap");
+  const card = document.getElementById("rc-card");
+  const overlays = document.getElementById("rc-overlays");
 
-  function api(path, opts) {
-    opts = opts || {};
-    opts.credentials = "include";
-    return fetch(`/api/v1/leveling/${GID}${path}`, opts).then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t) }));
-  }
+  const $ = (id) => document.getElementById(id);
+  const api = (path, opts) => {
+    opts = Object.assign({ credentials: "include" }, opts);
+    return fetch(`/api/v1/user${path}`, opts).then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t) }));
+  };
 
   function hexToRgb(h) {
-    h = String(h || "").replace(/^#/, "");
-    if (h.length === 3) h = h.split("").map(c => c + c).join("");
-    let r, g, b;
-    if (h.length === 6) { r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16); }
-    else { r = g = b = 0; }
-    return [r, g, b, 255];
+    let s = String(h || "").replace(/^#/, "");
+    if (s.length === 3) s = s.split("").map(c => c + c).join("");
+    const n = parseInt(s, 16);
+    if (!s || isNaN(n)) return [255, 255, 255, 255];
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255];
   }
   function rgbToHex(c) {
-    if (!c) return "#ffffff";
     const to = (n) => Math.round(Math.min(255, Math.max(0, n || 0))).toString(16).padStart(2, "0");
     return "#" + to(c[0]) + to(c[1]) + to(c[2]);
   }
 
-  // ---- element bounds (mirrors image_builder geometry) ----
-  function layout(e) {
-    const avatarSize = e.avatar.size || AVATAR_SIZE;
-    const ax = e.avatar.x != null ? e.avatar.x : PANEL_X + 24;
-    const ay = e.avatar.y != null ? e.avatar.y : PANEL_Y + (PANEL_H - avatarSize) / 2;
-    const tx = ax + avatarSize + 24;
-    const ty = ay + 12;
-    const xpValueY = ty + 42;
-    const bx = e.xp_bar.x != null ? e.xp_bar.x : tx;
-    const by = e.xp_bar.y != null ? e.xp_bar.y : ay + avatarSize - 40;
-    const bw = e.xp_bar.width != null ? e.xp_bar.width : PANEL_W - (avatarSize + 120);
-    const bh = e.xp_bar.height || 14;
-    const rankY = by - 24;
-    return { ax, ay, avatarSize, tx, ty, xpValueY, bx, by, bw, bh, rankY };
+  // ---- logical (card-space) helpers ----
+  function pctOfLogical(logical, total) {
+    return (logical / total) * 100;
+  }
+  function logicalToCss(x, y, w, h) {
+    return {
+      left: pctOfLogical(x, CV_W) + "%",
+      top: pctOfLogical(y, CV_H) + "%",
+      width: pctOfLogical(w, CV_W) + "%",
+      height: pctOfLogical(h, CV_H) + "%",
+    };
   }
 
-  function textWidth(text, font) {
-    ctx.font = font;
-    return ctx.measureText(text).actualBoundingBoxLength + 4; // small pad
-  }
-  function fitText(text, font, maxWidth, fontSize) {
-    ctx.font = `${fontSize}px Lexend, sans-serif`;
-    if (ctx.measureText(text).actualBoundingBoxLength <= maxWidth) return text;
-    let s = "...";
-    let lo = 0, hi = text.length;
-    while (lo < hi) {
-      const mid = Math.ceil((lo + hi) / 2);
-      const cand = text.slice(0, mid) + s;
-      if (ctx.measureText(cand).actualBoundingBoxLength <= maxWidth) lo = mid; else hi = mid - 1;
-    }
-    return text.slice(0, lo) + s;
-  }
-
-  function drawRounded(x, y, w, h, r, color) {
-    ctx.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${color[3] != null ? color[3] / 255 : 1})`;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.fill("evenodd");
-  }
-
-  function drawAvatarCircle(ax, ay, size) {
-    const img = state.avatarImg;
-    if (img && img.complete) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(ax + size / 2, ay + size / 2, size / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img, ax, ay, size, size);
-      ctx.restore();
-      ctx.strokeStyle = "rgba(255,255,255,1)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(ax + size / 2, ay + size / 2, size / 2 + 3, 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      // default avatar fallback
-      const colors = [[139, 92, 246], [22, 163, 74], [249, 115, 22], [239, 68, 68], [6, 182, 212], [236, 72, 153]];
-      const c = colors[Math.abs(SAMPLE.rank) % colors.length];
-      ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},1)`;
-      const r = size / 2;
-      ctx.beginPath();
-      ctx.arc(ax + r, ay + r, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,1)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(ax + r, ay + r, r + 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,1)";
-      ctx.font = `bold ${size * 0.45}px Lexend, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(SAMPLE.displayName)[0].toUpperCase(), ax + r, ay + r);
-    }
-  }
-
-  function render() {
+  function layout() {
     const e = state.config.elements;
-    // clear
-    ctx.clearRect(0, 0, CV_W, CV_H);
-    // background
-    const bg = state.bgImage;
-    if (bg && bg.complete) {
-      ctx.drawImage(bg, 0, 0, CV_W, CV_H);
-      ctx.fillStyle = "rgba(0,0,0,0.43)";
-      ctx.fillRect(0, 0, CV_W, CV_H);
-    } else {
-      ctx.fillStyle = `rgba(${SOLID_BG[0]},${SOLID_BG[1]},${SOLID_BG[2]},1)`;
-      ctx.fillRect(0, 0, CV_W, CV_H);
-    }
+    const avSize = e.avatar.size || 180;
+    const avatarX = e.avatar.x != null ? e.avatar.x : 54;
+    const avatarY = e.avatar.y != null ? e.avatar.y : 60;
+    const textX = avatarX + avSize + 24;
+    const textY = avatarY + 12;
+    const xpValueY = textY + 42;
+    const barX = e.xp_bar.x != null ? e.xp_bar.x : textX;
+    const barY = e.xp_bar.y != null ? e.xp_bar.y : avatarY + avSize - 40;
+    const barW = e.xp_bar.width != null ? e.xp_bar.width : 840 - (avSize + 120);
+    const barH = e.xp_bar.height || 14;
+    return { e, avSize, avatarX, avatarY, textX, textY, xpValueY, barX, barY, barW, barH };
+  }
 
-    const L = layout(e);
+  function fmt(n) { return Number(n).toLocaleString(); }
+
+  function renderCard() {
+    const e = state.config.elements;
+    const L = layout();
+
+    // background
+    const bg = $("rc-bg");
+    bg.style.background = e.panel.enabled ? "rgba(10,10,16,.65)" : "transparent";
+    bg.style.display = "block";
 
     // panel
-    if (e.panel.enabled) drawRounded(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 16, PANEL_COLOR);
-
-    const pc = rgbToHex(state.config.primary_color);
-    const ac = rgbToHex(state.config.accent_color);
+    $("rc-panel").style.display = e.panel.enabled ? "block" : "none";
 
     // avatar
-    if (e.avatar.enabled) drawAvatarCircle(L.ax, L.ay, L.avatarSize);
+    const avatar = $("rc-avatar");
+    avatar.style.left = pctOfLogical(L.avatarX, CV_W) + "%";
+    avatar.style.top = pctOfLogical(L.avatarY, CV_H) + "%";
+    avatar.style.width = pctOfLogical(L.avSize, CV_W) + "%";
+    avatar.style.height = pctOfLogical(L.avSize, CV_W) + "%";
+    avatar.style.display = e.avatar.enabled ? "block" : "none";
+    avatar.src = SAMPLE.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
 
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
+    const primary = rgbToHex(state.config.primary_color);
+    const accent = rgbToHex(state.config.accent_color);
 
     // name + level
-    if (e.name.enabled) {
-      ctx.font = `bold 32px Lexend, sans-serif`;
-      const levelSuffix = `● ${SAMPLE.level}`;
-      const maxWidth = PANEL_X + PANEL_W - L.tx - 20 - textWidth(levelSuffix, `bold 32px Lexend, sans-serif`) - 12;
-      const name = fitText(SAMPLE.displayName, `bold 32px Lexend, sans-serif`, maxWidth, 32) || "";
-      const label = name ? `${name} ${levelSuffix}` : levelSuffix;
-      ctx.fillStyle = `rgba(${state.config.accent_color[0]},${state.config.accent_color[1]},${state.config.accent_color[2]},1)`;
-      ctx.fillText(label, L.tx, L.ty);
-    }
+    const nameEl = $("rc-name");
+    nameEl.style.left = pctOfLogical(e.name.x != null ? e.name.x : L.textX, CV_W) + "%";
+    nameEl.style.top = pctOfLogical(e.name.y != null ? e.name.y : L.textY, CV_H) + "%";
+    nameEl.style.color = accent;
+    nameEl.style.display = e.name.enabled ? "flex" : "none";
+    $("rc-name-text").textContent = SAMPLE.displayName || "User";
+    $("rc-level").textContent = `● ${SAMPLE.level}`;
+    $("rc-level").style.color = accent;
 
     // xp value
-    if (e.xp_value.enabled) {
-      ctx.font = `bold 18px Lexend, sans-serif`;
-      ctx.fillStyle = `rgba(${state.config.accent_color[0]},${state.config.accent_color[1]},${state.config.accent_color[2]},1)`;
-      ctx.fillText(`${SAMPLE.xp.toLocaleString()} XP`, L.tx, L.xpValueY);
-    }
+    const xpValue = $("rc-xpvalue");
+    xpValue.style.left = pctOfLogical(e.xp_value.x != null ? e.xp_value.x : L.textX, CV_W) + "%";
+    xpValue.style.top = pctOfLogical(e.xp_value.y != null ? e.xp_value.y : L.xpValueY, CV_H) + "%";
+    xpValue.style.color = accent;
+    xpValue.style.display = e.xp_value.enabled ? "block" : "none";
+    xpValue.textContent = `${fmt(SAMPLE.xp)} XP`;
+    if (e.xp_value.x != null) xpValue.style.left = pctOfLogical(e.xp_value.x, CV_W) + "%";
+    if (e.xp_value.y != null) xpValue.style.top = pctOfLogical(e.xp_value.y, CV_H) + "%";
 
-    // rank
-    if (e.rank.enabled) {
-      ctx.font = `bold 22px Lexend, sans-serif`;
-      const rankText = fitText(`#${SAMPLE.rank} of ${SAMPLE.totalMembers.toLocaleString()}`, `bold 22px Lexend, sans-serif`, L.bw, 22);
-      const rw = ctx.measureText(rankText).actualBoundingBoxLength;
-      const rx = e.rank.x != null ? e.rank.x : Math.max(L.bx, L.bx + L.bw - rw);
-      const ry = e.rank.y != null ? e.rank.y : L.rankY;
-      ctx.fillStyle = `rgba(${state.config.primary_color[0]},${state.config.primary_color[1]},${state.config.primary_color[2]},1)`;
-      ctx.textAlign = "left";
-      ctx.fillText(rankText, rx, ry);
-      ctx.textAlign = "left";
-    }
+    // rank (right-aligned to bar right by default)
+    const rankEl = $("rc-rank");
+    rankEl.style.top = pctOfLogical(L.barY - 24, CV_H) + "%";
+    rankEl.style.color = primary;
+    rankEl.style.display = e.rank.enabled ? "block" : "none";
+    rankEl.textContent = `#${SAMPLE.rank} of ${fmt(SAMPLE.totalMembers)}`;
+    if (e.rank.x != null) rankEl.style.left = pctOfLogical(e.rank.x, CV_W) + "%";
+    if (e.rank.y != null) rankEl.style.top = pctOfLogical(e.rank.y, CV_H) + "%";
 
-    // XP bar
+    // bar
     const levelXp = 100 * SAMPLE.level + 50 * (SAMPLE.level - 1);
     const nextXp = 100 * (SAMPLE.level + 1) + 50 * SAMPLE.level;
     const progress = Math.max(0, Math.min(1, (SAMPLE.xp - levelXp) / Math.max(1, nextXp - levelXp)));
-    if (e.xp_bar.enabled) {
-      // bg
-      drawRounded(L.bx, L.by, L.bw, L.bh, 7, PROGRESS_BG);
-      const fillW = Math.max(0, Math.floor(L.bw * progress));
-      if (fillW > 0) drawRounded(L.bx, L.by, fillW, L.bh, 7, state.config.primary_color);
-    }
+    const bar = $("rc-bar");
+    bar.style.left = pctOfLogical(L.barX, CV_W) + "%";
+    bar.style.top = pctOfLogical(L.barY, CV_H) + "%";
+    bar.style.width = pctOfLogical(L.barW, CV_W) + "%";
+    bar.style.height = pctOfLogical(L.barH, CV_H) + "%";
+    bar.style.display = e.xp_bar.enabled ? "block" : "none";
+    $("rc-bar-fill").style.width = (progress * 100) + "%";
+    $("rc-bar-fill").style.background = primary;
 
     // xp ratio
-    if (e.xp_ratio.enabled) {
-      const nextLevelXp = SAMPLE.xp + SAMPLE.xpNeeded > 0 ? SAMPLE.xp + SAMPLE.xpNeeded : nextXp;
-      ctx.font = `16px Lexend, sans-serif`;
-      ctx.fillStyle = `rgba(${state.config.accent_color[0]},${state.config.accent_color[1]},${state.config.accent_color[2]},1)`;
-      ctx.fillText(`${SAMPLE.xp.toLocaleString()} / ${nextLevelXp.toLocaleString()} XP`, L.bx, L.by + L.bh + 8);
-    }
+    const nextLevelXp = SAMPLE.xp + SAMPLE.xpNeeded > 0 ? SAMPLE.xp + SAMPLE.xpNeeded : nextXp;
+    const ratio = $("rc-xpratio");
+    ratio.style.left = pctOfLogical(L.barX, CV_W) + "%";
+    ratio.style.top = pctOfLogical(L.barY + L.barH + 8, CV_H) + "%";
+    ratio.style.color = accent;
+    ratio.style.display = e.xp_ratio.enabled ? "block" : "none";
+    ratio.textContent = `${fmt(SAMPLE.xp)} / ${fmt(nextLevelXp)} XP`;
+    if (e.xp_ratio.x != null) ratio.style.left = pctOfLogical(e.xp_ratio.x, CV_W) + "%";
+    if (e.xp_ratio.y != null) ratio.style.top = pctOfLogical(e.xp_ratio.y, CV_H) + "%";
+
+    applyBackgroundStyle();
   }
 
-  // ---- hot-spots for dragging (only positional elements) ----
-  const HOTSPOTS = [
-    { key: "avatar", label: "Avatar", bounds: () => { const e = state.config.elements; const L = layout(e); return [e.avatar.x != null ? e.avatar.x : L.ax, e.avatar.y != null ? e.avatar.y : L.ay, L.avatarSize, L.avatarSize]; } },
-    { key: "xp_bar", label: "XP bar", bounds: () => { const e = state.config.elements; const L = layout(e); return [e.xp_bar.x != null ? e.xp_bar.x : L.bx, e.xp_bar.y != null ? e.xp_bar.y : L.by, L.bw, L.bh]; } },
-    { key: "rank", label: "Rank", bounds: () => { const e = state.config.elements; const L = layout(e); const rw = 200; return [e.rank.x != null ? e.rank.x : L.bx + L.bw - rw, e.rank.y != null ? e.rank.y : L.rankY, rw, 26]; } },
-    { key: "xp_ratio", label: "XP ratio", bounds: () => { const e = state.config.elements; const L = layout(e); return [e.xp_ratio.x != null ? e.xp_ratio.x : L.bx, e.xp_ratio.y != null ? e.xp_ratio.y : L.by + L.bh + 8, 200, 20]; } },
-  ];
-
-  function findHotspot(mx, my) {
-    // reversed: top-most first
-    for (let i = HOTSPOTS.length - 1; i >= 0; i--) {
-      const hs = HOTSPOTS[i];
-      const el = state.config.elements[hs.key];
-      if (!el.enabled) continue;
-      const [x, y, w, h] = hs.bounds();
-      if (mx >= x - 4 && mx <= x + w + 4 && my >= y - 4 && my <= y + h + 4) return hs;
-    }
-    return null;
+  // ---- scale-aware coordinate conversion ----
+  function cardScale() {
+    const cr = card.getBoundingClientRect();
+    // displayed size vs logical size
+    return { sx: CV_W / cr.width, sy: CV_H / cr.height, cr };
+  }
+  // convert a viewport point to logical card coords
+  function toLogical(clientX, clientY) {
+    const s = cardScale();
+    const crect = s.cr;
+    return { x: (clientX - crect.left) * s.sx, y: (clientY - crect.top) * s.sy };
   }
 
-  function placeHandles() {
-    // remove existing
-    document.querySelectorAll(".re-hotcell").forEach(n => n.remove());
-    HOTSPOTS.forEach(hs => {
-      const el = state.config.elements[hs.key];
-      if (!el.enabled) return;
-      const [x, y, w, h] = hs.bounds();
+  // ---- overlay positioning via measured getBoundingClientRect ----
+  const HOT_KEYS = ["panel", "avatar", "name", "xp_value", "rank", "xp_bar", "xp_ratio"];
+  const LABELS = {
+    panel: "Panel", avatar: "Avatar", name: "Name", xp_value: "XP value",
+    rank: "Rank", xp_bar: "XP bar", xp_ratio: "XP ratio",
+  };
+
+  function measureOverlays() {
+    overlays.innerHTML = "";
+    const crect = card.getBoundingClientRect();
+    HOT_KEYS.forEach(key => {
+      const el = $(`rc-${key === "xp_value" ? "xpvalue" : key === "xp_ratio" ? "xpratio" : key === "xp_bar" ? "bar" : key}`);
+      if (!el || el.style.display === "none") return;
+      const er = el.getBoundingClientRect();
+      const left = er.left - crect.left;
+      const top = er.top - crect.top;
+      const w = er.width;
+      const h = er.height;
       const cell = document.createElement("div");
-      cell.className = "re-hotcell";
-      cell.style.left = `${x}px`;
-      cell.style.top = `${y}px`;
-      cell.style.width = `${w}px`;
-      cell.style.height = `${h}px`;
-      cell.dataset.el = hs.key;
-      const handle = document.createElement("div");
-      handle.className = "re-handle";
-      cell.appendChild(handle);
-      cell.title = hs.label;
-      wrap.appendChild(cell);
+      cell.className = "rc-hot";
+      cell.style.left = left + "px";
+      cell.style.top = top + "px";
+      cell.style.width = w + "px";
+      cell.style.height = h + "px";
+      cell.dataset.el = key;
+      const lbl = document.createElement("span"); lbl.className = "rc-label"; lbl.textContent = LABELS[key];
+      const handle = document.createElement("div"); handle.className = "rc-handle"; handle.dataset.el = key;
+      cell.appendChild(lbl); cell.appendChild(handle);
+      overlays.appendChild(cell);
     });
   }
 
-  // ---- dragging ----
-  let dragStart = { x: 0, y: 0 };
-  let dragOrigin = { x: 0, y: 0 };
-  wrap.addEventListener("mousedown", (ev) => {
-    if (ev.button !== 0) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = (ev.clientX - rect.left) * (CV_W / rect.width);
-    const my = (ev.clientY - rect.top) * (CV_H / rect.height);
-    const hs = findHotspot(mx, my);
-    if (!hs) { state.dragging = null; return; }
-    const el = state.config.elements[hs.key];
-    dragOrigin = { x: el.x == null ? hs.bounds()[0] : el.x, y: el.y == null ? hs.bounds()[1] : el.y };
-    dragStart = { x: ev.clientX, y: ev.clientY };
-    state.dragging = hs;
+  // ---- drag handling ----
+  let dragInfo = null;
+  overlays.addEventListener("mousedown", (ev) => {
+    const handle = ev.target.closest(".rc-handle");
+    if (!handle) return;
     ev.preventDefault();
+    const key = handle.dataset.el;
+    const el = state.config.elements[key];
+    if (!el) return;
+    const start = toLogical(ev.clientX, ev.clientY);
+    const baseX = el.x != null ? el.x : (el.y != null ? null : null) || defaultOrigin(key);
+    dragInfo = { key, startX: el.x != null ? el.x : defaultOrigin(key).x, startY: el.y != null ? el.y : defaultOrigin(key).y, start };
+    ev.target.closest(".rc-hot").classList.add("dragging");
   });
+
   document.addEventListener("mousemove", (ev) => {
-    if (!state.dragging) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = CV_W / rect.width, scaleY = CV_H / rect.height;
-    const dx = (ev.clientX - dragStart.x) * scaleX;
-    const dy = (ev.clientY - dragStart.y) * scaleY;
-    const el = state.config.elements[state.dragging.key];
-    el.x = Math.max(0, Math.min(CV_W, dragOrigin.x + dx));
-    el.y = Math.max(0, Math.min(CV_H, dragOrigin.y + dy));
-    markDirty();
-    render();
-    placeHandles();
+    if (!dragInfo) return;
+    const cur = toLogical(ev.clientX, ev.clientY);
+    const el = state.config.elements[dragInfo.key];
+    el.x = dragInfo.startX + (cur.x - dragInfo.start.x);
+    el.y = dragInfo.startY + (cur.y - dragInfo.start.y);
+    el.x = Math.max(0, Math.min(CV_W, el.x));
+    el.y = Math.max(0, Math.min(CV_H, el.y));
+    state.dirty = true;
+    renderCard();
+    measureOverlays();
   });
   document.addEventListener("mouseup", () => {
-    if (state.dragging) {
-      const key = state.dragging.key;
-      // snap back to default if dragged within 6px of origin
-      const el = state.config.elements[key];
-      const hs = HOTSPOTS.find(h => h.key === key);
-      if (hs && el && el.x != null && el.y != null) {
-        const [dx, dy] = hs.bounds();
-        if (Math.abs(el.x - dx) < 6 && Math.abs(el.y - dy) < 6) { el.x = null; el.y = null; }
-      }
-      state.dragging = null;
+    if (dragInfo) {
+      const el = state.config.elements[dragInfo.key];
+      // snap back to default if near origin
+      const origin = defaultOrigin(dragInfo.key);
+      if (Math.abs(el.x - origin.x) < 6 && Math.abs(el.y - origin.y) < 6) { el.x = null; el.y = null; }
+      dragInfo = null;
+      document.querySelectorAll(".rc-hot").forEach(n => n.classList.remove("dragging"));
     }
   });
 
-  // ---- UI wiring ----
-  function markDirty() { state.dirty = true; }
+  function defaultOrigin(key) {
+    const L = layout();
+    switch (key) {
+      case "avatar": return { x: 54, y: 60 };
+      case "name": return { x: L.textX, y: L.textY };
+      case "xp_value": return { x: L.textX, y: L.xpValueY };
+      case "rank": return { x: Math.max(L.barX, L.barX + L.barW - 200), y: L.barY - 24 };
+      case "xp_bar": return { x: L.barX, y: L.barY };
+      case "xp_ratio": return { x: L.barX, y: L.barY + L.barH + 8 };
+      default: return { x: 0, y: 0 };
+    }
+  }
 
+  // ---- controls ----
   function updateColorInputs() {
-    document.getElementById("re-color-primary").value = rgbToHex(state.config.primary_color);
-    document.getElementById("re-color-accent").value = rgbToHex(state.config.accent_color);
-  }
-
-  document.getElementById("re-color-primary").addEventListener("input", (ev) => {
-    state.config.primary_color = hexToRgb(ev.target.value);
-    markDirty(); render();
-  });
-  document.getElementById("re-color-accent").addEventListener("input", (ev) => {
-    state.config.accent_color = hexToRgb(ev.target.value);
-    markDirty(); render();
-  });
-
-  document.getElementById("re-bg-random").addEventListener("click", () => {
-    state.config.background = "random";
-    state.bgImage = null;
-    markDirty(); render(); refreshBgGallery();
-  });
-  document.getElementById("re-bg-none").addEventListener("click", () => {
-    state.config.background = null;
-    state.bgImage = null;
-    markDirty(); render(); refreshBgGallery();
-  });
-  document.getElementById("re-bg-custom").addEventListener("change", () => {
-    const v = document.getElementById("re-bg-custom").value.trim();
-    if (v) {
-      state.config.background = v;
-      loadBgImage(v);
-    } else {
-      state.config.background = "random";
-      loadBgImage("random");
-    }
-    markDirty(); render(); refreshBgGallery();
-  });
-
-  let bgList = [];
-  async function loadBackgrounds() {
-    try {
-      const d = await api("/backgrounds");
-      bgList = d.backgrounds || [];
-    } catch (e) {
-      bgList = [];
-    }
-    refreshBgGallery();
-  }
-  function refreshBgGallery() {
-    const g = document.getElementById("bg-gallery");
-    if (!bgList.length) { g.innerHTML = '<div style="text-align:center;padding:0.8rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No server backgrounds available.</div>'; return; }
-    g.innerHTML = bgList.map(name => {
-      const selected = state.config.background === name;
-      return `<img class="bg-thumb${selected ? ' selected' : ''}" src="/api/v1/leveling/${GID}/backgrounds/${encodeURIComponent(name)}" loading="lazy" data-name="${name}" alt="${name}" />`;
-    }).join("");
-    g.querySelectorAll(".bg-thumb").forEach(thumb => {
-      thumb.addEventListener("click", () => {
-        state.config.background = thumb.dataset.name;
-        loadBgImage(thumb.dataset.name);
-        markDirty(); render(); refreshBgGallery();
-      });
-    });
-  }
-  state.bgImage = null;
-  async function loadBgImage(name) {
-    if (name === "random") {
-      // don't preload random; render will use solid + note
-      state.bgImage = null;
-      return;
-    }
-    if (!name) { state.bgImage = null; return; }
-    if (state.bgImages[name]) { state.bgImage = state.bgImages[name]; return; }
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => { state.bgImages[name] = img; if (state.config.background === name) { state.bgImage = img; markDirty(); render(); } };
-    img.onerror = () => { state.bgImages[name] = null; };
-    img.src = `/api/v1/leveling/${GID}/backgrounds/${encodeURIComponent(name)}`;
-    state.bgImage = img;
-  }
-
-  async function loadAvatar() {
-    try {
-      const d = await api("/role-preview");
-      SAMPLE.displayName = d.display_name || SAMPLE.displayName;
-      SAMPLE.avatarUrl = d.avatar_url || SAMPLE.avatarUrl;
-    } catch (e) { /* keep defaults */ }
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => { state.avatarImg = img; render(); };
-    img.onerror = () => { state.avatarImg = null; };
-    img.src = SAMPLE.avatarUrl;
-    state.avatarImg = img;
+    $("re-color-primary").value = rgbToHex(state.config.primary_color);
+    $("re-color-accent").value = rgbToHex(state.config.accent_color);
   }
 
   function bindToggles() {
     document.querySelectorAll('input[data-el]').forEach(inp => {
-      inp.addEventListener("change", () => {
+      inp.checked = state.config.elements[inp.dataset.el].enabled;
+      inp.onchange = () => {
         const el = state.config.elements[inp.dataset.el];
         el.enabled = inp.checked;
-        markDirty(); render(); placeHandles();
+        state.dirty = true; renderCard(); measureOverlays();
+      };
+    });
+  }
+
+  $("re-color-primary").addEventListener("input", (ev) => {
+    state.config.primary_color = hexToRgb(ev.target.value);
+    $("re-primary-swatch").style.setProperty("--c", ev.target.value);
+    state.dirty = true; renderCard(); measureOverlays();
+  });
+  $("re-color-accent").addEventListener("input", (ev) => {
+    state.config.accent_color = hexToRgb(ev.target.value);
+    $("re-accent-swatch").style.setProperty("--c", ev.target.value);
+    state.dirty = true; renderCard(); measureOverlays();
+  });
+
+  $("re-bg-random").addEventListener("click", () => {
+    state.config.background = "random";
+    $("re-bg-custom").value = "";
+    $("re-bg-custom").disabled = false;
+    markBgSelected(null);
+    state.dirty = true; renderCard(); measureOverlays();
+  });
+  $("re-bg-solid").addEventListener("click", () => {
+    state.config.background = null;
+    $("re-bg-custom").value = "";
+    $("re-bg-custom").disabled = true;
+    markBgSelected("solid");
+    renderCard(); measureOverlays();
+  });
+
+  let bgList = [];
+  async function loadBackgrounds() {
+    try { bgList = (await api("/backgrounds")).backgrounds || []; } catch (e) { bgList = []; }
+    refreshGallery();
+  }
+  function markBgSelected(name) {
+    document.querySelectorAll(".bg-thumb").forEach(t => t.classList.toggle("selected", t.dataset.name === name));
+  }
+  function refreshGallery() {
+    const g = $("bg-gallery");
+    if (!bgList.length) { g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>'; return; }
+    g.innerHTML = bgList.map(name =>
+      `<img class="bg-thumb" src="/api/v1/user/backgrounds/${encodeURIComponent(name)}" data-name="${name}" alt="${name}" loading="lazy" />`
+    ).join("");
+    g.querySelectorAll(".bg-thumb").forEach(thumb => {
+      thumb.addEventListener("click", () => {
+        state.config.background = thumb.dataset.name;
+        $("re-bg-custom").value = state.config.background;
+        $("re-bg-custom").disabled = false;
+        markBgSelected(state.config.background);
+        state.dirty = true; renderCard(); measureOverlays();
       });
     });
   }
 
-  document.getElementById("re-save").addEventListener("click", saveChanges);
-  document.getElementById("re-reset").addEventListener("click", resetEditor);
+  $("re-bg-custom").addEventListener("change", () => {
+    const v = $("re-bg-custom").value.trim();
+    if (v) { state.config.background = v; markBgSelected(null); }
+    else { state.config.background = "random"; markBgSelected(null); }
+    state.dirty = true; renderCard(); measureOverlays();
+  });
 
-  async function saveChanges() {
-    const btn = document.getElementById("re-save");
+  async function loadPreview() {
+    try {
+      const d = await api("/rank-preview");
+      if (d.display_name) SAMPLE.displayName = d.display_name;
+      if (d.avatar_url) SAMPLE.avatarUrl = d.avatar_url;
+    } catch (e) { /* keep defaults */ }
+  }
+
+  async function loadSettings() {
+    try {
+      const d = await api("/rank-card");
+      const saved = d.rank_card || {};
+      state.config = {
+        background: Object.prototype.hasOwnProperty.call(saved, "background") ? saved.background : DEFAULTS.background,
+        primary_color: (saved.primary_color && saved.primary_color.length) ? saved.primary_color : DEFAULTS.primary_color,
+        accent_color: (saved.accent_color && saved.accent_color.length) ? saved.accent_color : DEFAULTS.accent_color,
+        elements: {},
+      };
+      for (const name in DEFAULTS.elements) {
+        state.config.elements[name] = { ...DEFAULTS.elements[name], ...(saved.elements && saved.elements[name] || {}) };
+      }
+      state.loaded = JSON.parse(JSON.stringify(state.config));
+      $("re-bg-custom").value = (typeof state.config.background === "string" && state.config.background && state.config.background !== "random") ? state.config.background : "";
+      $("re-bg-custom").disabled = !state.config.background || state.config.background === "random" || state.config.background === "solid";
+      if (typeof state.config.background === "string" && state.config.background && state.config.background !== "random") {
+        markBgSelected(state.config.background);
+      } else if (state.config.background === null) {
+        markBgSelected("solid");
+      }
+    } catch (e) { /* keep defaults */ }
+  }
+
+  $("re-save").addEventListener("click", async () => {
+    const btn = $("re-save");
     btn.disabled = true; btn.textContent = "Saving...";
     try {
-      const res = await fetch(`/api/v1/leveling/${GID}/settings`, {
-        method: "POST",
-        credentials: "include",
+      const res = await fetch("/api/v1/user/rank-card", {
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "rank_card", value: state.config }),
+        body: JSON.stringify({ value: state.config }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || d.error || "save failed");
-      for (const k in state.config) state.loaded[k] = JSON.parse(JSON.stringify(state.config[k]));
+      state.loaded = JSON.parse(JSON.stringify(state.config));
       state.dirty = false;
-      if (typeof showToast === "function") showToast("Rank card settings saved.", "success");
+      if (typeof showToast === "function") showToast("Rank card saved.", "success");
     } catch (err) {
       if (typeof showToast === "function") showToast(String(err.message || err), "error", 5000);
     } finally {
       btn.disabled = false; btn.textContent = "Save";
     }
-  }
+  });
 
-  function resetEditor() {
-    if (!confirm("Reset the rank card to defaults? This can't be undone.")) return;
-    state.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-    state.bgImage = null;
-    markDirty();
-    render(); placeHandles(); refreshBgGallery(); updateColorInputs();
-    document.querySelectorAll('input[data-el]').forEach(inp => { inp.checked = state.config.elements[inp.dataset.el].enabled; });
-  }
+  $("re-reset").addEventListener("click", () => {
+    if (!confirm("Reset your rank card to defaults? This can't be undone.")) return;
+    state.config = JSON.parse(JSON.stringify(DEFAULTS));
+    state.dirty = true; renderCard(); measureOverlays();
+    bindToggles(); updateColorInputs();
+    $("re-bg-custom").value = ""; $("re-bg-custom").disabled = false; markBgSelected(null);
+  });
 
-  async function loadSettings() {
-    try {
-      const d = await api("/settings");
-      const s = d.settings || {};
-      const saved = s.rank_card || {};
-      // merge with defaults
-      state.config = {
-        background: Object.prototype.hasOwnProperty.call(saved, "background") ? saved.background : DEFAULT_CONFIG.background,
-        primary_color: (saved.primary_color && saved.primary_color.length) ? saved.primary_color : DEFAULT_CONFIG.primary_color,
-        accent_color: (saved.accent_color && saved.accent_color.length) ? saved.accent_color : DEFAULT_CONFIG.accent_color,
-        elements: {},
-      };
-      const defs = DEFAULT_CONFIG.elements;
-      const userElems = saved.elements || {};
-      for (const name in defs) {
-        state.config.elements[name] = { ...defs[name], ...(userElems[name] || {}) };
+  // ---- background image loading (preview only) ----
+  function applyBackgroundStyle() {
+    const bg = $("rc-bg");
+    const bgName = state.config.background;
+    if (bgName && typeof bgName === "string" && bgName !== "random") {
+      if (bgName === "solid") { bg.style.background = "#181a1e"; }
+      else {
+        const img = state.bgImages[bgName];
+        if (img && img.complete) { bg.style.background = `url(${img.src})`; bg.style.backgroundSize="cover"; bg.style.backgroundPosition="center"; }
+        else { bg.style.background = "#181a1e"; loadBgImage(bgName); }
       }
-      state.loaded = JSON.parse(JSON.stringify(state.config));
-      // hydrate UI
-      document.querySelectorAll('input[data-el]').forEach(inp => { inp.checked = state.config.elements[inp.dataset.el].enabled; });
-      document.getElementById("re-bg-custom").value = typeof state.config.background === "string" && !["random", null].includes(state.config.background) ? state.config.background : "";
-      if (typeof state.config.background === "string" && state.config.background && state.config.background !== "random") {
-        loadBgImage(state.config.background);
-      }
-    } catch (e) { /* keep defaults */ }
+    } else {
+      bg.style.background = "#181a1e"; // random -> placeholder gradient in preview
+    }
+  }
+  async function loadBgImage(name) {
+    if (state.bgImages[name]) { applyBackgroundStyle(); return; }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { state.bgImages[name] = img; applyBackgroundStyle(); };
+    img.onerror = () => { state.bgImages[name] = null; };
+    img.src = `/api/v1/user/backgrounds/${encodeURIComponent(name)}`;
+    state.bgImages[name] = img;
   }
 
   // init
-  (async function () {
-    if (GID) {
-      loadBackgrounds();
-      await loadSettings();
-    }
+  (async () => {
+    await loadSettings();
     bindToggles();
-    await loadAvatar();
     updateColorInputs();
-    render();
-    placeHandles();
+    await loadPreview();
+    renderCard();
+    measureOverlays();
+    loadBackgrounds();
   })();
 })();

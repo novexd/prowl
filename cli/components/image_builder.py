@@ -25,8 +25,8 @@ RANKS_DEFAULT_CONFIG = {
     "elements": {
         "panel": {"enabled": True},
         "avatar": {"enabled": True, "x": None, "y": None, "size": None},
-        "name": {"enabled": True},
-        "xp_value": {"enabled": True},
+        "name": {"enabled": True, "x": None, "y": None},
+        "xp_value": {"enabled": True, "x": None, "y": None},
         "rank": {"enabled": True, "x": None, "y": None},
         "xp_bar": {"enabled": True, "x": None, "y": None, "width": None, "height": 14},
         "xp_ratio": {"enabled": True},
@@ -430,20 +430,21 @@ async def create_rank_card(
     display_name = str(getattr(user, "display_name", "") or str(user))
     level_suffix = f"● {level}"
     level_width = draw.textlength(level_suffix, font=name_font)
-    max_name_width = panel_x + panel_w - text_x - 20 - level_width - 12
-    name = _truncate_to_width(draw, display_name, name_font, max_name_width)
 
     name_elems = cfg["elements"]["name"]
     if name_elems["enabled"]:
+        name_x = name_elems.get("x") or text_x
+        name_y = name_elems.get("y") or text_y
+        max_name_width = panel_x + panel_w - name_x - 20 - level_width - 12
+        name = _truncate_to_width(draw, display_name, name_font, max_name_width)
         label = f"{name} {level_suffix}" if name else level_suffix
-        draw.text((text_x, text_y), label, font=name_font, fill=accent_color)
+        draw.text((name_x, name_y), label, font=name_font, fill=accent_color)
 
     xp_value_elems = cfg["elements"]["xp_value"]
     if xp_value_elems["enabled"]:
-        xp_y = text_y + 42
-        draw.text((text_x, xp_y), f"{xp:,} XP", font=small_font, fill=accent_color)
-    else:
-        xp_y = text_y + 42
+        xp_x = xp_value_elems.get("x") or text_x
+        xp_y = xp_value_elems.get("y") or (text_y + 42)
+        draw.text((xp_x, xp_y), f"{xp:,} XP", font=small_font, fill=accent_color)
 
     bar_cfg = cfg["elements"]["xp_bar"]
     bar_x = bar_cfg.get("x") or text_x

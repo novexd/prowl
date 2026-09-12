@@ -331,6 +331,7 @@ async def _ensure_tables():
         ("CREATE TABLE IF NOT EXISTS verify_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS leveling_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS leveling_data (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0, messages INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))", ()),
+        ("CREATE TABLE IF NOT EXISTS user_rank_cards (user_id TEXT PRIMARY KEY, rank_card TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS automation_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS autoresponder (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, trigger TEXT NOT NULL, response TEXT NOT NULL, match_type TEXT NOT NULL DEFAULT 'contains', channel_id TEXT, cooldown INTEGER DEFAULT 0, created_at REAL)", ()),
         ("CREATE TABLE IF NOT EXISTS social_settings (guild_id TEXT PRIMARY KEY, settings TEXT NOT NULL DEFAULT '{}', updated_at REAL)", ()),
@@ -1258,3 +1259,62 @@ async def delete_guild_data(guild_id):
         logger.info(f"Deleted all data for guild {gid}.")
     except Exception as e:
         logger.error(f"delete_guild_data failed for {gid}: {e}")
+
+
+_USER_RC_CACHE = {}
+_USER_RC_CACHE_TTL = 120.0
+
+
+async def get_user_rank_card(user_id) -> dict:
+    """Load a user's rank card config (per-user, not guild-scoped)."""
+    uid = str(user_id)
+    entry = _USER_RC_CACHE.get(uid)
+    if entry and (time.time() - entry["ts"]) < _USER_RC_CACHE_TTL:
+        return dict(entry["value"])
+    pool = await get_pool()
+    if not pool:
+        return {}
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT rank_card FROM user_rank_cards WHERE user_id = ?", uid)
+        if not row:
+            return {}
+        raw = row["rank_card"]
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                parsed = {}
+            value = parsed if isinstance(parsed, dict) else {}
+        elif isinstance(raw, dict):
+            value = raw
+        else:
+            value = {}
+        _USER_RC_CACHE[uid] = {"value": dict(value), "ts": time.time()}
+        return dict(value)
+    except Exception as e:
+        logger.debug(f"get_user_rank_card failed for {uid}: {e}")
+        return {}
+
+
+async def set_user_rank_card(user_id, config: dict):
+    """Persist a user's rank card config and update the cache."""
+    uid = str(user_id)
+    value = dict(config or {})
+    _USER_RC_CACHE[uid] = {"value": dict(value), "ts": time.time()}
+    pool = await get_pool()
+    if not pool:
+        return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO user_rank_cards (user_id, rank_card, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT (user_id) DO UPDATE SET rank_card = ?, updated_at = ?",
+                uid, json.dumps(value), time.time(), json.dumps(value), time.time(),
+            )
+    except Exception as e:
+        logger.debug(f"set_user_rank_card failed for {uid}: {e}")
+
+
+def invalidate_user_rank_card(user_id):
+    _USER_RC_CACHE.pop(str(user_id), None)

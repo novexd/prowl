@@ -26,7 +26,6 @@ LEVELING_DEFAULTS = {
     "level_up_message_mode": "basic", "level_up_embed": {},
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
-    "rank_card": {},
 }
 XP_PER_MESSAGE = (15, 25)
 XP_COOLDOWN = 60
@@ -317,11 +316,11 @@ class Leveling(commands.Cog, name="Leveling"):
             )
             rank = int(rank_row["rnk"]) if rank_row else 1
 
-        settings = await get_leveling_settings(interaction.guild_id)
+        rank_card_config = await neon_db.get_user_rank_card(target.id)
         card = await create_rank_card(
             target, current_level, current_xp, xp_needed, rank, total_members,
             guild_name=interaction.guild.name if interaction.guild else "Server",
-            config=settings.get("rank_card"),
+            config=rank_card_config,
         )
         file = discord.File(card, filename=f"rank_{target.id}.png")
 
@@ -330,7 +329,7 @@ class Leveling(commands.Cog, name="Leveling"):
         try:
             base_url = os.environ.get("APP_URL") or "https://prowlbot.xyz"
             base_url = base_url.rstrip("/")
-            edit_url = f"{base_url}/guild/{interaction.guild_id}/rank-editor"
+            edit_url = f"{base_url}/rank-editor"
         except Exception:
             edit_url = None
         if edit_url:
