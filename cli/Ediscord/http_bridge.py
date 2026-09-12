@@ -152,16 +152,35 @@ class _PreviewAvatar:
         self._url = url
 
     async def read(self) -> bytes:
-        import aiohttp
-        timeout = aiohttp.ClientTimeout(total=10)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(self._url, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
-                if resp.status != 200:
-                    raise ValueError(f"avatar fetch failed: {resp.status}")
-                data = await resp.read()
-        if len(data) > PREVIEW_AVATAR_MAX_BYTES:
-            raise ValueError("avatar too large")
-        return data
+        return await _fetch_preview_avatar(self._url)
+
+
+# Preview avatar bytes cache: the editor re-renders the same avatar URL on
+# every change, so repeat previews skip the Discord CDN round-trip (~0.5s).
+_PREVIEW_AVATAR_CACHE = {}
+_PREVIEW_AVATAR_TTL = 600
+_PREVIEW_AVATAR_MAX = 32
+
+
+async def _fetch_preview_avatar(url: str) -> bytes:
+    import aiohttp
+    import time
+    now = time.monotonic()
+    hit = _PREVIEW_AVATAR_CACHE.get(url)
+    if hit is not None and now - hit[0] < _PREVIEW_AVATAR_TTL:
+        return hit[1]
+    timeout = aiohttp.ClientTimeout(total=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(url, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+            if resp.status != 200:
+                raise ValueError(f"avatar fetch failed: {resp.status}")
+            data = await resp.read()
+    if len(data) > PREVIEW_AVATAR_MAX_BYTES:
+        raise ValueError("avatar too large")
+    _PREVIEW_AVATAR_CACHE[url] = (now, data)
+    while len(_PREVIEW_AVATAR_CACHE) > _PREVIEW_AVATAR_MAX:
+        _PREVIEW_AVATAR_CACHE.pop(next(iter(_PREVIEW_AVATAR_CACHE)), None)
+    return data
 
 
 class _PreviewUser:
@@ -185,22 +204,49 @@ def _sanitize_preview_config(raw_cfg, manifest_ids: set) -> dict:
     """Strictly validate an editor-supplied rank_card config.
 
     Backgrounds are restricted to manifest ids / "random" / null or legacy
-    local filenames (containment-checked at open time). Raw http(s) URLs are
-    rejected here (SSRF) even though the renderer itself can fetch them."""
-    from components.image_builder import _open_background_name, _to_rgba, WHITE, RANKS_DEFAULT_CONFIG
+    local filenames (containment-checked at open time), plus solid/gradient
+    dicts. Raw http(s) URLs are rejected here (SSRF) even though the renderer
+    itself can fetch them. Colors accept RGBA lists (alpha kept) or gradient
+    dicts; elements accept a primary/accent color source.
+    """
+    from components.image_builder import (
+        _open_background_name, _sanitize_gradient, _sanitize_rgba_list,
+        WHITE, LEGACY_SOLID_BG, RANKS_DEFAULT_CONFIG,
+    )
     if not isinstance(raw_cfg, dict):
         raise ValueError("config must be an object")
     bg = raw_cfg.get("background", "random")
     if bg is None or bg == "random":
         clean_bg = bg
+    elif isinstance(bg, dict):
+        mode = bg.get("mode")
+        if mode == "solid":
+            clean_bg = {"mode": "solid", "color": _sanitize_rgba_list(bg.get("color"), LEGACY_SOLID_BG)}
+        elif mode == "gradient":
+            g = _sanitize_gradient(bg)
+            if g is None:
+                raise ValueError("invalid background gradient")
+            clean_bg = {"mode": "gradient", "direction": g["direction"],
+                        "colors": [list(c) for c in g["colors"]]}
+        else:
+            raise ValueError("invalid background")
     elif isinstance(bg, str) and (bg in manifest_ids or _open_background_name(bg) is not None):
         clean_bg = bg
     else:
         raise ValueError("invalid background")
+
+    def _clean_slot(v, what):
+        if isinstance(v, dict):
+            g = _sanitize_gradient(v)
+            if g is None:
+                raise ValueError(f"invalid {what} gradient")
+            return {"direction": g["direction"], "colors": [list(c) for c in g["colors"]]}
+        return _sanitize_rgba_list(v, (255, 255, 255, 255))
+
     clean = {
         "background": clean_bg,
-        "primary_color": list(_to_rgba(raw_cfg.get("primary_color"), WHITE)[:3]),
-        "accent_color": list(_to_rgba(raw_cfg.get("accent_color"), WHITE)[:3]),
+        "primary_color": _clean_slot(raw_cfg.get("primary_color"), "primary"),
+        "accent_color": _clean_slot(raw_cfg.get("accent_color"), "accent"),
         "elements": {},
     }
     raw_elements = raw_cfg.get("elements") or {}
@@ -211,6 +257,8 @@ def _sanitize_preview_config(raw_cfg, manifest_ids: set) -> dict:
         if not isinstance(raw_el, dict):
             raw_el = {}
         el = {"enabled": bool(raw_el.get("enabled", True))}
+        if raw_el.get("color") in ("primary", "accent"):
+            el["color"] = raw_el["color"]
         for field, (lo, hi) in PREVIEW_POS_BOUNDS.items():
             if field in raw_el and raw_el[field] is not None:
                 el[field] = _clamp_int(raw_el[field], lo, hi, None)
@@ -260,6 +308,7 @@ async def _run_preview_job(job_id: str, clean: dict, pv: dict):
             _clamp_int(pv.get("total_members"), 1, 10 ** 9, 284),
             guild_name="Preview",
             config=clean,
+            png_optimize=False,
         )
         job["png"] = buf.getvalue()
         job["ready"] = True

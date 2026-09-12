@@ -11,13 +11,27 @@
     elements: {
       panel: { enabled: true },
       avatar: { enabled: true, x: null, y: null, size: null },
-      name: { enabled: true, x: null, y: null },
-      xp_value: { enabled: true, x: null, y: null },
-      rank: { enabled: true, x: null, y: null },
-      xp_bar: { enabled: true, x: null, y: null, width: null, height: 14 },
-      xp_ratio: { enabled: true },
+      name: { enabled: true, x: null, y: null, color: "accent" },
+      xp_value: { enabled: true, x: null, y: null, color: "accent" },
+      rank: { enabled: true, x: null, y: null, color: "primary" },
+      xp_bar: { enabled: true, x: null, y: null, width: null, height: 14, color: "primary" },
+      xp_ratio: { enabled: true, color: "accent" },
     },
   };
+
+  // Elements whose fill color can switch between the Primary/Accent slots.
+  const COLOR_ELEMENTS = ["name", "xp_value", "rank", "xp_bar", "xp_ratio"];
+  const EL_LABELS = {
+    panel: "Dark panel", avatar: "Avatar", name: "Name & Level",
+    xp_value: "XP value", rank: "Rank", xp_bar: "XP bar", xp_ratio: "XP ratio text",
+  };
+  const GRADIENT_DIRS = [
+    ["horizontal", "Left to right"],
+    ["vertical", "Top to bottom"],
+    ["diagonal", "Diagonal"],
+    ["radial", "Radial"],
+  ];
+  const MAX_STOPS = 4;
 
   const PRESETS = ["#5865f2", "#57f287", "#fee75c", "#faa61a", "#ed4245", "#eb459e", "#00c8ff", "#b6a2e0", "#ffffff", "#313338", "#000000"];
 
@@ -28,6 +42,8 @@
 
   let bgList = [];
   let renderTimer = null, renderSeq = 0, previewURL = null;
+  const colorSlots = [];
+  const DEBUG = true;
 
   const $ = (id) => document.getElementById(id);
   const api = (path, opts) => {
@@ -47,51 +63,225 @@
     return "#" + to(c[0]) + to(c[1]) + to(c[2]);
   }
 
-  function setVal(id, v) {
-    const el = $(id);
-    if (el) el.value = v;
-  }
-
   function on(id, ev, fn) {
     const el = $(id);
     if (el) el.addEventListener(ev, fn);
   }
 
-  function updateColorInputs() {
-    setVal("re-color-primary", rgbToHex(state.config.primary_color));
-    setVal("re-primary-hex", rgbToHex(state.config.primary_color));
-    setVal("re-color-accent", rgbToHex(state.config.accent_color));
-    setVal("re-accent-hex", rgbToHex(state.config.accent_color));
+  function clampCh(n, dflt) {
+    n = Math.round(Number(n));
+    if (isNaN(n)) return dflt;
+    return Math.max(0, Math.min(255, n));
   }
 
-  function syncColorPair(colorId, hexId, apply) {
-    const col = $(colorId), hex = $(hexId);
-    if (!col || !hex) return;
-    col.addEventListener("input", () => { hex.value = col.value; apply(hexToRgb(col.value)); });
-    hex.addEventListener("input", () => {
-      if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { col.value = hex.value; apply(hexToRgb(hex.value)); }
-    });
+  // Color model: a slot is either a solid [r,g,b,a?] or a gradient
+  // {direction, colors:[[r,g,b,a], ...]}. Alpha defaults to 255.
+  function isGrad(v) {
+    return !!v && typeof v === "object" && !Array.isArray(v);
+  }
+  function normSolid(v) {
+    if (isGrad(v)) v = (v.colors && v.colors[0]) || [255, 255, 255];
+    if (!Array.isArray(v)) return [255, 255, 255, 255];
+    return [clampCh(v[0], 255), clampCh(v[1], 255), clampCh(v[2], 255),
+      v.length > 3 ? clampCh(v[3], 255) : 255];
+  }
+  function normGradient(v, fallback) {
+    const dirs = GRADIENT_DIRS.map(d => d[0]);
+    let direction = "horizontal", colors = null;
+    if (isGrad(v)) {
+      if (dirs.includes(v.direction)) direction = v.direction;
+      const raw = v.colors || v.stops;
+      if (Array.isArray(raw) && raw.length >= 2) {
+        colors = raw.slice(0, MAX_STOPS).map(c => normSolid(c));
+      }
+    }
+    if (!colors) {
+      const base = normSolid(fallback !== undefined ? fallback : [139, 92, 246]);
+      const second = normSolid(v);
+      colors = [base, (second.join() === base.join()) ? [34, 211, 238, 255] : second];
+    }
+    return { direction, colors };
+  }
+  function alphaPct(c) {
+    return Math.round((normSolid(c)[3] / 255) * 100);
+  }
+
+  /* Reusable solid/gradient color editor.
+   * container: element to render into. opts: {label, get, set, presets=true}
+   * get() returns the slot value from state; set(v) writes it back (then the
+   * caller re-renders previews via setDirty). refresh() re-renders from state.
+   */
+  function colorField(container, opts) {
+    if (!container) return { refresh() {} };
+    const get = opts.get, set = opts.set;
+    const showPresets = opts.presets !== false;
+
+    function solidRow(color) {
+      const c = normSolid(color);
+      const wrap = document.createElement("div");
+      wrap.className = "re-color-pick";
+      const pct = Math.round((c[3] / 255) * 100);
+      wrap.innerHTML =
+        `<input type="color" class="re-swatch" value="${rgbToHex(c)}" />` +
+        `<input type="text" class="md-input" value="${rgbToHex(c)}" style="max-width:90px;" />` +
+        `<div class="re-alpha" title="Transparency"><input type="range" min="0" max="100" value="${pct}" /><span>${pct}%</span></div>`;
+      const [sw, hex, rangeWrap] = [wrap.children[0], wrap.children[1], wrap.children[2]];
+      const range = rangeWrap.querySelector("input"), label = rangeWrap.querySelector("span");
+      const apply = (rgb, a) => {
+        const cur = normSolid(get());
+        set([rgb[0], rgb[1], rgb[2], a !== undefined ? a : cur[3]]);
+        setDirty(true);
+      };
+      sw.addEventListener("input", () => { hex.value = sw.value; apply(hexToRgb(sw.value)); });
+      hex.addEventListener("input", () => {
+        if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { sw.value = hex.value; apply(hexToRgb(hex.value)); }
+      });
+      range.addEventListener("input", () => {
+        label.textContent = range.value + "%";
+        apply(hexToRgb(sw.value), Math.round((Number(range.value) / 100) * 255));
+      });
+      return wrap;
+    }
+
+    function stopRow(grad, idx) {
+      const c = normSolid(grad.colors[idx]);
+      const row = document.createElement("div");
+      row.className = "re-stop";
+      const pct = Math.round((c[3] / 255) * 100);
+      row.innerHTML =
+        `<input type="color" class="re-swatch" value="${rgbToHex(c)}" />` +
+        `<input type="text" class="md-input" value="${rgbToHex(c)}" style="max-width:82px;" />` +
+        `<div class="re-alpha" title="Transparency"><input type="range" min="0" max="100" value="${pct}" /><span>${pct}%</span></div>` +
+        `<button type="button" class="re-stop-remove" title="Remove color" ${grad.colors.length <= 2 ? "disabled" : ""}>\u00d7</button>`;
+      const [sw, hex, rangeWrap, rm] = [row.children[0], row.children[1], row.children[2], row.children[3]];
+      const range = rangeWrap.querySelector("input"), label = rangeWrap.querySelector("span");
+      const commit = (rgb, a) => {
+        const g = normGradient(get());
+        g.colors[idx] = [rgb[0], rgb[1], rgb[2], a !== undefined ? a : normSolid(g.colors[idx])[3]];
+        set(g);
+        setDirty(true);
+      };
+      sw.addEventListener("input", () => { hex.value = sw.value; commit(hexToRgb(sw.value)); });
+      hex.addEventListener("input", () => {
+        if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { sw.value = hex.value; commit(hexToRgb(hex.value)); }
+      });
+      range.addEventListener("input", () => {
+        label.textContent = range.value + "%";
+        commit(hexToRgb(sw.value), Math.round((Number(range.value) / 100) * 255));
+      });
+      rm.addEventListener("click", () => {
+        const g = normGradient(get());
+        if (g.colors.length <= 2) return;
+        g.colors.splice(idx, 1);
+        set(g);
+        refresh();
+        setDirty(true);
+      });
+      return row;
+    }
+
+    function gradientBody(grad) {
+      const body = document.createElement("div");
+      const dirSel = document.createElement("select");
+      dirSel.className = "md-input re-dir";
+      dirSel.style.width = "100%";
+      GRADIENT_DIRS.forEach(([val, label]) => {
+        const o = document.createElement("option");
+        o.value = val;
+        o.textContent = label;
+        if (val === grad.direction) o.selected = true;
+        dirSel.appendChild(o);
+      });
+      dirSel.addEventListener("change", () => {
+        const g = normGradient(get());
+        g.direction = dirSel.value;
+        set(g);
+        setDirty(true);
+      });
+      body.appendChild(dirSel);
+      grad.colors.forEach((_, i) => body.appendChild(stopRow(grad, i)));
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "re-add-stop";
+      add.textContent = "+ Add color";
+      if (grad.colors.length >= MAX_STOPS) add.disabled = true;
+      add.addEventListener("click", () => {
+        const g = normGradient(get());
+        if (g.colors.length >= MAX_STOPS) return;
+        g.colors.push([255, 255, 255, 255]);
+        set(g);
+        refresh();
+        setDirty(true);
+      });
+      body.appendChild(add);
+      return body;
+    }
+
+    function refresh() {
+      const val = get();
+      const grad = isGrad(val);
+      container.innerHTML = "";
+      const head = document.createElement("div");
+      head.className = "re-field-head";
+      const lab = document.createElement("div");
+      lab.className = "md-behavior-label";
+      lab.textContent = opts.label;
+      head.appendChild(lab);
+      if (!opts.lockMode) {
+        const seg = document.createElement("div");
+        seg.className = "re-seg";
+        [["solid", "Solid"], ["gradient", "Gradient"]].forEach(([mode, text]) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = text;
+          if ((mode === "gradient") === grad) b.classList.add("on");
+          b.addEventListener("click", () => {
+            const cur = get();
+            if (mode === "gradient" && !isGrad(cur)) set(normGradient(null, cur));
+            if (mode === "solid" && isGrad(cur)) set(normSolid(cur));
+            refresh();
+            setDirty(true);
+          });
+          seg.appendChild(b);
+        });
+        head.appendChild(seg);
+      }
+      container.appendChild(head);
+      if (grad || opts.lockMode === "gradient") {
+        container.appendChild(gradientBody(normGradient(val)));
+      } else {
+        container.appendChild(solidRow(val));
+        if (showPresets) {
+          const p = document.createElement("div");
+          p.className = "md-presets";
+          p.style.cssText = "margin:0.4rem 0 0 0;flex-wrap:wrap;";
+          container.appendChild(p);
+          PRESETS.forEach(hex => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "md-preset";
+            b.textContent = hex;
+            b.style.color = hex;
+            if (isDark(hex)) b.style.background = "#fff";
+            b.addEventListener("click", () => {
+              const cur = normSolid(get());
+              set([hexToRgb(hex)[0], hexToRgb(hex)[1], hexToRgb(hex)[2], cur[3]]);
+              refresh();
+              setDirty(true);
+            });
+            p.appendChild(b);
+          });
+        }
+      }
+    }
+
+    refresh();
+    return { refresh };
   }
 
   function isDark(hex) {
     const [r, g, b] = hexToRgb(hex);
     return (0.299 * r + 0.587 * g + 0.114 * b) < 110;
-  }
-
-  function renderPresets(elId, apply) {
-    const el = $(elId);
-    if (!el) return;
-    el.innerHTML = "";
-    PRESETS.forEach(hex => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "md-preset";
-      b.textContent = hex;
-      b.style.color = hex;
-      if (isDark(hex)) b.style.background = "#fff";
-      b.addEventListener("click", () => apply(hexToRgb(hex)));
-      el.appendChild(b);
-    });
   }
 
   function setDirty(dirty) {
@@ -104,11 +294,10 @@
 
   function scheduleRender() {
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(renderPreview, 450);
+    renderTimer = setTimeout(renderPreview, 250);
   }
 
-  const POLL_MS = 1500, POLL_MAX = 45;
-  const DEBUG = true;
+  const POLL_MS = 750, POLL_MAX = 60;
 
   async function renderPreview() {
     const img = $("re-preview"), ov = $("re-ph-overlay"), st = $("re-preview-status");
@@ -165,18 +354,59 @@
   }
 
   function refreshColorUI() {
-    updateColorInputs();
+    colorSlots.forEach(s => { try { s.refresh(); } catch (e) { /* keep going */ } });
+    refreshBgPanels();
   }
 
-  function bindToggles() {
-    document.querySelectorAll('input[data-el]').forEach(inp => {
-      const key = inp.dataset.el;
-      if (state.config.elements[key]) inp.checked = !!state.config.elements[key].enabled;
-      inp.onchange = () => {
+  function renderElementList() {
+    const list = $("re-element-list");
+    if (!list) return;
+    list.innerHTML = "";
+    Object.keys(EL_LABELS).forEach(key => {
+      const cfg = state.config.elements[key] || {};
+      const item = document.createElement("div");
+      item.className = "md-behavior-item";
+      const label = document.createElement("label");
+      label.className = "md-toggle";
+      const inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.checked = cfg.enabled !== false;
+      inp.addEventListener("change", () => {
         if (state.config.elements[key]) state.config.elements[key].enabled = inp.checked;
         renderOverlay();
         setDirty(true);
-      };
+      });
+      const slider = document.createElement("span");
+      slider.className = "md-toggle-slider";
+      label.appendChild(inp);
+      label.appendChild(slider);
+      item.appendChild(label);
+      const textWrap = document.createElement("div");
+      const text = document.createElement("div");
+      text.className = "md-behavior-label";
+      text.textContent = EL_LABELS[key];
+      textWrap.appendChild(text);
+      item.appendChild(textWrap);
+      if (COLOR_ELEMENTS.includes(key)) {
+        const sel = document.createElement("select");
+        sel.className = "md-input re-el-color";
+        sel.title = "Color source";
+        [["primary", "Primary"], ["accent", "Accent"]].forEach(([val, textContent]) => {
+          const o = document.createElement("option");
+          o.value = val;
+          o.textContent = textContent;
+          sel.appendChild(o);
+        });
+        sel.value = (cfg.color === "primary" || cfg.color === "accent")
+          ? cfg.color
+          : (DEFAULTS.elements[key].color || "accent");
+        sel.addEventListener("change", () => {
+          if (state.config.elements[key]) state.config.elements[key].color = sel.value;
+          setDirty(true);
+        });
+        item.appendChild(sel);
+      }
+      list.appendChild(item);
     });
   }
 
@@ -264,7 +494,8 @@
       chip.innerHTML = `<span class="re-chip-tag">${OVERLAY_DEFS[key].label}</span>` +
         (OVERLAY_DEFS[key].resize ? `<span class="re-handle"></span>` : ``);
       chip.addEventListener("pointerdown", e => onChipDown(e, key));
-      chip.addEventListener("dblclick", e => {
+      chip.addEventListener("contextmenu", e => {
+        e.preventDefault();
         e.stopPropagation();
         const c = state.config.elements[key];
         if (!c) return;
@@ -339,15 +570,46 @@
     if (el) el.textContent = msg;
   }
 
+  function bgModeOf(bg) {
+    if (bg && typeof bg === "object" && !Array.isArray(bg)) {
+      return bg.mode === "gradient" ? "gradient" : "solid";
+    }
+    return "image";
+  }
+
+  function refreshBgPanels() {
+    const mode = bgModeOf(state.config.background);
+    const sel = $("re-bg-mode");
+    if (sel) sel.value = mode;
+    const gal = $("bg-gallery"), solid = $("re-bg-solidwrap"), grad = $("re-bg-gradwrap");
+    if (gal) gal.style.display = mode === "image" ? "" : "none";
+    if (solid) solid.style.display = mode === "solid" ? "" : "none";
+    if (grad) grad.style.display = mode === "gradient" ? "" : "none";
+    if (mode !== "image") markBgSelected(null);
+  }
+
+  function setBgMode(mode) {
+    if (mode === "solid") {
+      state.config.background = { mode: "solid", color: [25, 25, 35, 255] };
+    } else if (mode === "gradient") {
+      state.config.background = {
+        mode: "gradient", direction: "horizontal",
+        colors: [[139, 92, 246, 255], [34, 211, 238, 255]],
+      };
+    } else {
+      state.config.background = "random";
+    }
+    refreshColorUI();
+    setDirty(true);
+  }
+
   function refreshGallery() {
     const g = $("bg-gallery");
     if (!g) return;
     if (!bgList.length) {
       g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>';
-      setBgStatus("0 backgrounds found.");
       return;
     }
-    setBgStatus(`${bgList.length} backgrounds loaded.`);
     g.innerHTML = bgList.map(entry => {
       // Manifest objects {id, url, thumb} or legacy filename strings.
       const id = typeof entry === "string" ? entry : entry.id;
@@ -395,19 +657,33 @@
     try {
       const d = await api("/rank-card");
       const saved = d.rank_card || {};
+      let bg = Object.prototype.hasOwnProperty.call(saved, "background") ? saved.background : DEFAULTS.background;
+      if (bg === null || bg === undefined) bg = { mode: "solid", color: [25, 25, 35, 255] };
+      if (isGrad(bg)) {
+        bg = bg.mode === "gradient"
+          ? { mode: "gradient", ...normGradient(bg) }
+          : { mode: "solid", color: normSolid(bg.color) };
+      } else if (typeof bg !== "string" || !bg) {
+        bg = DEFAULTS.background;
+      }
+      const slot = (v, dflt) => (isGrad(v) ? normGradient(v, dflt) : normSolid(v || dflt));
       state.config = {
-        background: Object.prototype.hasOwnProperty.call(saved, "background") ? saved.background : DEFAULTS.background,
-        primary_color: (saved.primary_color && saved.primary_color.length) ? saved.primary_color : DEFAULTS.primary_color,
-        accent_color: (saved.accent_color && saved.accent_color.length) ? saved.accent_color : DEFAULTS.accent_color,
+        background: bg,
+        primary_color: slot(saved.primary_color, DEFAULTS.primary_color),
+        accent_color: slot(saved.accent_color, DEFAULTS.accent_color),
         elements: {},
       };
       for (const name in DEFAULTS.elements) {
-        state.config.elements[name] = { ...DEFAULTS.elements[name], ...((saved.elements && saved.elements[name]) || {}) };
+        const merged = { ...DEFAULTS.elements[name], ...((saved.elements && saved.elements[name]) || {}) };
+        const c = merged.color;
+        merged.color = (c === "primary" || c === "accent") ? c : (DEFAULTS.elements[name].color || "accent");
+        state.config.elements[name] = merged;
       }
       state.loaded = JSON.parse(JSON.stringify(state.config));
-      const bg = state.config.background;
-      if (typeof bg === "string" && bg && bg !== "random") markBgSelected(bg);
-      else if (bg === null) markBgSelected("solid");
+      if (typeof state.config.background === "string" && state.config.background !== "random") {
+        markBgSelected(state.config.background);
+      }
+      refreshBgPanels();
       setDirty(false);
     } catch (e) { /* keep defaults */ }
   }
@@ -416,21 +692,42 @@
     on("re-bg-random", "click", () => {
       state.config.background = "random";
       markBgSelected(null);
+      refreshColorUI();
       setDirty(true);
     });
 
-    on("re-bg-solid", "click", () => {
-      state.config.background = null;
-      markBgSelected("solid");
-      setDirty(true);
-    });
+    const modeSel = $("re-bg-mode");
+    if (modeSel) modeSel.addEventListener("change", () => setBgMode(modeSel.value));
 
-    const setPrimary = (rgb) => { state.config.primary_color = rgb; refreshColorUI(); setDirty(true); };
-    const setAccent = (rgb) => { state.config.accent_color = rgb; refreshColorUI(); setDirty(true); };
-    syncColorPair("re-color-primary", "re-primary-hex", setPrimary);
-    syncColorPair("re-color-accent", "re-accent-hex", setAccent);
-    renderPresets("re-primary-presets", setPrimary);
-    renderPresets("re-accent-presets", setAccent);
+    colorSlots.length = 0;
+    colorSlots.push(colorField($("re-color-primary-wrap"), {
+      label: "Primary",
+      get: () => state.config.primary_color,
+      set: (v) => { state.config.primary_color = v; },
+    }));
+    colorSlots.push(colorField($("re-color-accent-wrap"), {
+      label: "Accent",
+      get: () => state.config.accent_color,
+      set: (v) => { state.config.accent_color = v; },
+    }));
+    colorSlots.push(colorField($("re-bg-solidwrap"), {
+      label: "Background color",
+      get: () => {
+        const bg = state.config.background;
+        return (bg && bg.mode === "solid") ? (bg.color || [25, 25, 35, 255]) : [25, 25, 35, 255];
+      },
+      set: (v) => { state.config.background = { mode: "solid", color: normSolid(v) }; },
+    }));
+    colorSlots.push(colorField($("re-bg-gradwrap"), {
+      label: "Background gradient",
+      lockMode: "gradient",
+      presets: false,
+      get: () => {
+        const bg = state.config.background;
+        return (bg && bg.mode === "gradient") ? bg : normGradient(null, [139, 92, 246]);
+      },
+      set: (v) => { state.config.background = { mode: "gradient", ...normGradient(v) }; },
+    }));
 
     on("re-save", "click", async () => {
       const btn = $("re-save");
@@ -460,7 +757,7 @@
     on("re-reset", "click", () => {
       if (!confirm("Reset your rank card to defaults? This can't be undone.")) return;
       state.config = JSON.parse(JSON.stringify(DEFAULTS));
-      bindToggles();
+      renderElementList();
       refreshColorUI();
       markBgSelected(null);
       setDirty(true);
@@ -484,8 +781,9 @@
       measureRankText();
       await loadSettings();
       refreshColorUI();
-      bindToggles();
+      renderElementList();
       bindStatic();
+      refreshColorUI();
       renderOverlay();
       const stage = $("re-stage");
       if (stage) stage.addEventListener("pointerdown", e => {

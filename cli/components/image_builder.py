@@ -53,15 +53,161 @@ def _to_rgba(color, default):
     return tuple(parts)
 
 
+GRADIENT_DIRECTIONS = ("horizontal", "vertical", "diagonal", "radial")
+
+
+def _clamp_channel(v, default=255):
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(255, n))
+
+
+def _sanitize_rgba_list(v, default=(255, 255, 255, 255)):
+    """Normalize a user-supplied color to [r, g, b, a] (alpha kept)."""
+    if isinstance(v, (list, tuple)) and 3 <= len(v) <= 4:
+        try:
+            out = [_clamp_channel(v[0]), _clamp_channel(v[1]), _clamp_channel(v[2])]
+            out.append(_clamp_channel(v[3], 255) if len(v) > 3 else 255)
+            return out
+        except Exception:
+            pass
+    return list(default)
+
+
+def _sanitize_gradient(v):
+    """Normalize a user-supplied gradient to
+    {"direction": ..., "colors": [[r,g,b,a], ...]} or return None."""
+    if not isinstance(v, dict):
+        return None
+    direction = v.get("direction")
+    if direction not in GRADIENT_DIRECTIONS:
+        return None
+    raw = v.get("colors", v.get("stops"))
+    if not isinstance(raw, (list, tuple)) or not (2 <= len(raw) <= 6):
+        return None
+    colors = []
+    for c in raw:
+        if not isinstance(c, (list, tuple)) or not (3 <= len(c) <= 4):
+            return None
+        colors.append(_sanitize_rgba_list(c, (255, 255, 255, 255)))
+    return {"direction": direction, "colors": colors}
+
+
+def _color_spec(v, default=(255, 255, 255, 255)):
+    """A color slot is either ("solid", (r,g,b,a)) or ("gradient", {...})."""
+    if isinstance(v, dict):
+        g = _sanitize_gradient(v)
+        if g is not None:
+            return ("gradient", g)
+    return ("solid", tuple(_sanitize_rgba_list(v, default)))
+
+
+def _lerp(a, b, t):
+    return a + (b - a) * t
+
+
+def _lerp_color(c1, c2, t):
+    return tuple(int(round(_lerp(x, y, t))) for x, y in zip(c1, c2))
+
+
+def _stops_at(stops, t):
+    """Evenly-spaced multi-stop interpolation; stops are (r,g,b,a) tuples."""
+    if t <= 0:
+        return tuple(stops[0])
+    if t >= 1:
+        return tuple(stops[-1])
+    n = len(stops) - 1
+    pos = t * n
+    i = min(int(pos), n - 1)
+    return _lerp_color(stops[i], stops[i + 1], pos - i)
+
+
+def _gradient_image(w, h, direction, colors):
+    """Rasterize a gradient. Rendered small then upscaled (BICUBIC) so even
+    the 900x300 card background costs ~65k pixel ops, not 270k."""
+    w = max(1, int(w))
+    h = max(1, int(h))
+    stops = [tuple(c) for c in colors]
+    if direction == "horizontal":
+        ww, hh = 256, 1
+        pos = lambda x, y: x / 255.0
+    elif direction == "vertical":
+        ww, hh = 1, 256
+        pos = lambda x, y: y / 255.0
+    elif direction == "radial":
+        ww, hh = 256, 256
+        pos = lambda x, y: min(1.0, (((x / 255.0 - 0.5) ** 2 + (y / 255.0 - 0.5) ** 2) ** 0.5 * 1.41421356))
+    else:  # diagonal: top-left -> bottom-right
+        ww, hh = 256, 256
+        pos = lambda x, y: (x + y) / 510.0
+    small = Image.new("RGBA", (ww, hh))
+    px = small.load()
+    for y in range(hh):
+        for x in range(ww):
+            px[x, y] = _stops_at(stops, pos(x, y))
+    if (ww, hh) == (w, h):
+        return small
+    return small.resize((w, h), Image.Resampling.BICUBIC)
+
+
+def _fill_image(size, spec):
+    """Materialize a color spec into an RGBA image of the given size."""
+    kind, val = spec
+    if kind == "gradient":
+        return _gradient_image(size[0], size[1], val["direction"], val["colors"])
+    return Image.new("RGBA", (int(size[0]), int(size[1])), val)
+
+
+# Default fill color source per element (panel/avatar draw no colored content).
+ELEMENT_COLOR_DEFAULTS = {
+    "panel": None,
+    "avatar": None,
+    "name": "accent",
+    "xp_value": "accent",
+    "rank": "primary",
+    "xp_bar": "primary",
+    "xp_ratio": "accent",
+}
+
+# Flat dark fill used when a legacy `background: null` (old Solid button) is
+# loaded. The old button promised solid but rendered random; null now maps to
+# the solid it always claimed to be.
+LEGACY_SOLID_BG = (25, 25, 35, 255)
+
+
+def _sanitize_background(value):
+    """Normalize the background slot.
+
+    Returns "random", a manifest-id/legacy string, None (no image: flat
+    base), or ("solid", rgba) / ("gradient", {...}) tuples.
+    """
+    if value is None:
+        return ("solid", LEGACY_SOLID_BG)
+    if isinstance(value, dict):
+        mode = value.get("mode")
+        if mode == "solid":
+            return ("solid", tuple(_sanitize_rgba_list(value.get("color"), LEGACY_SOLID_BG)))
+        if mode == "gradient":
+            g = _sanitize_gradient(value)
+            if g is not None:
+                return ("gradient", g)
+        return "random"
+    if isinstance(value, str):
+        return value or "random"
+    return "random"
+
+
 def _rank_cfg(config):
     """Normalize a persisted rank_card config, filling from RANKS_DEFAULT_CONFIG."""
     if not isinstance(config, dict):
         config = {}
     base = RANKS_DEFAULT_CONFIG
     merged = {
-        "background": config.get("background") or "random",
-        "primary_color": _to_rgba(config.get("primary_color"), WHITE),
-        "accent_color": _to_rgba(config.get("accent_color"), WHITE),
+        "background": _sanitize_background(config.get("background", "random")),
+        "primary_color": _color_spec(config.get("primary_color")),
+        "accent_color": _color_spec(config.get("accent_color")),
         "elements": {},
     }
     defaults = base["elements"]
@@ -70,7 +216,10 @@ def _rank_cfg(config):
         user_elems = {}
     for name, defs in defaults.items():
         user = user_elems.get(name) or {}
-        merged["elements"][name] = {**defs, **user}
+        el = {**defs, **user}
+        want = ELEMENT_COLOR_DEFAULTS.get(name)
+        el["color"] = el.get("color") if el.get("color") in ("primary", "accent") else want
+        merged["elements"][name] = el
     return merged
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "data" / "static"
@@ -95,7 +244,18 @@ _manifest_cache = {"entries": None, "at": 0.0}
 
 
 def _manifest_file() -> Optional[Path]:
-    """Local manifest checkout (dev repo layout, incl. website tree)."""
+    """Local manifest checkout (dev repo layout, incl. website tree).
+
+    Also honors the deploy tree, where the release workflow ships a copy at
+    data/static/backgrounds.json so validation/rendering never depend on the
+    bot reaching the website over HTTP (this was the background-502 cause).
+    """
+    static_copy = STATIC_DIR / "backgrounds.json"
+    try:
+        if static_copy.is_file():
+            return static_copy
+    except OSError:
+        pass
     here = Path(__file__).resolve()
     for cand in (
         here.parents[2] / "website" / "static" / "backgrounds.json",
@@ -269,6 +429,59 @@ def _draw_progress_bar(
         fill_width = int(width * min(1.0, max(0.0, progress)))
         if fill_width > 0:
             _draw_rounded_rect(draw, (x, y, x + fill_width, y + height), radius, fg_color)
+
+
+def _draw_progress_bar_gradient(
+    img: Image.Image,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    progress: float,
+    bg_color: Tuple[int, int, int, int],
+    grad: dict,
+    radius: int = 8,
+) -> ImageDraw.ImageDraw:
+    """Progress bar whose fill is clipped through a gradient spec."""
+    draw = ImageDraw.Draw(img)
+    _draw_rounded_rect(draw, (x, y, x + width, y + height), radius, bg_color)
+    if progress > 0:
+        fill_width = int(width * min(1.0, max(0.0, progress)))
+        if fill_width > 0:
+            mask = Image.new("L", (fill_width, height), 0)
+            ImageDraw.Draw(mask).rounded_rectangle(
+                (0, 0, fill_width, height), radius=radius, fill=255
+            )
+            fill = _gradient_image(fill_width, height, grad["direction"], grad["colors"])
+            img.paste(fill, (x, y), mask)
+    return ImageDraw.Draw(img)
+
+
+def _draw_text(img, xy, text, font, spec):
+    """Draw text filled with a solid color or clipped through a gradient.
+
+    Returns a fresh ImageDraw for the (possibly pasted-upon) image.
+    """
+    draw = ImageDraw.Draw(img)
+    if not text:
+        return draw
+    kind, val = spec
+    if kind != "gradient":
+        draw.text(xy, text, font=font, fill=val)
+        return draw
+    try:
+        bbox = draw.textbbox((0, 0), text, font=font)
+    except Exception:
+        draw.text(xy, text, font=font, fill=(255, 255, 255, 255))
+        return draw
+    w, h = int(bbox[2]), int(bbox[3])
+    if w <= 0 or h <= 0:
+        return draw
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).text((0, 0), text, font=font, fill=255)
+    fill = _gradient_image(w, h, val["direction"], val["colors"])
+    img.paste(fill, (int(xy[0]), int(xy[1])), mask)
+    return ImageDraw.Draw(img)
 
 
 def _create_avatar_mask(size: int) -> Image.Image:
@@ -531,6 +744,7 @@ async def create_rank_card(
     primary_color: Tuple[int, int, int, int] = WHITE,
     accent_color: Tuple[int, int, int, int] = WHITE,
     config: Optional[dict] = None,
+    png_optimize: bool = True,
 ) -> io.BytesIO:
     """
     Create a rank card showing user's position, level, and XP progress.
@@ -539,20 +753,30 @@ async def create_rank_card(
 
     ``config`` is a persisted ``rank_card`` settings dict (see ``_rank_cfg``)
     controlling background, colors, and element visibility/positions.
+    ``png_optimize`` skips PNG optimizer passes for latency-sensitive
+    previews (smaller CPU cost, slightly larger bytes).
     """
     cfg = _rank_cfg(config)
     primary_color = cfg["primary_color"]
     accent_color = cfg["accent_color"]
 
+    def _el_spec(name):
+        src = cfg["elements"][name].get("color")
+        return primary_color if src == "primary" else accent_color
+
     img = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), DEFAULT_BG_COLOR)
     draw = ImageDraw.Draw(img)
 
-    background_image = await _prepare_background(
-        background,
-        random_background=cfg["background"] == "random",
-    )
-    if background_image is None and cfg["background"] != "random" and isinstance(cfg["background"], str):
-        background_image = await _prepare_background(cfg["background"], random_background=False)
+    bg_val = cfg["background"]
+    if isinstance(bg_val, tuple):
+        background_image = _fill_image((CARD_WIDTH, CARD_HEIGHT), bg_val)
+    else:
+        background_image = await _prepare_background(
+            background,
+            random_background=bg_val == "random",
+        )
+        if background_image is None and bg_val != "random" and isinstance(bg_val, str):
+            background_image = await _prepare_background(bg_val, random_background=False)
     if background_image is not None:
         overlay = Image.new("RGBA", background_image.size, (0, 0, 0, 110))
         img = Image.alpha_composite(background_image, overlay)
@@ -617,13 +841,13 @@ async def create_rank_card(
         max_name_width = panel_x + panel_w - name_x - 20 - level_width - 12
         name = _truncate_to_width(draw, display_name, name_font, max_name_width)
         label = f"{name} {level_suffix}" if name else level_suffix
-        draw.text((name_x, name_y), label, font=name_font, fill=accent_color)
+        draw = _draw_text(img, (name_x, name_y), label, name_font, _el_spec("name"))
 
     xp_value_elems = cfg["elements"]["xp_value"]
     if xp_value_elems["enabled"]:
         xp_x = xp_value_elems.get("x") or text_x
         xp_y = xp_value_elems.get("y") or (text_y + 42)
-        draw.text((xp_x, xp_y), f"{xp:,} XP", font=small_font, fill=accent_color)
+        draw = _draw_text(img, (xp_x, xp_y), f"{xp:,} XP", small_font, _el_spec("xp_value"))
 
     bar_cfg = cfg["elements"]["xp_bar"]
     bar_x = bar_cfg.get("x") or text_x
@@ -642,26 +866,33 @@ async def create_rank_card(
         rank_width = draw.textlength(rank_text, font=rank_font) if rank_text else 0
         rank_x = rank_cfg.get("x") or max(bar_x, bar_x + bar_width - rank_width)
         rank_y = rank_cfg.get("y") or (bar_y - 24)
-        draw.text((rank_x, rank_y), rank_text, font=rank_font, fill=primary_color)
+        draw = _draw_text(img, (rank_x, rank_y), rank_text, rank_font, _el_spec("rank"))
 
     progress = (xp - xp_for_level(level)) / max(1, xp_for_level(level + 1) - xp_for_level(level))
     if bar_cfg["enabled"]:
-        _draw_progress_bar(draw, bar_x, bar_y, bar_width, bar_height, progress, PROGRESS_BG, primary_color, 7)
+        bar_spec = _el_spec("xp_bar")
+        if bar_spec[0] == "gradient":
+            draw = _draw_progress_bar_gradient(
+                img, bar_x, bar_y, bar_width, bar_height, progress, PROGRESS_BG, bar_spec[1], 7
+            )
+        else:
+            _draw_progress_bar(draw, bar_x, bar_y, bar_width, bar_height, progress, PROGRESS_BG, bar_spec[1], 7)
 
     next_level_xp = xp + xp_needed if xp_needed > 0 else xp_for_level(level + 1)
     ratio_cfg = cfg["elements"]["xp_ratio"]
     if ratio_cfg["enabled"]:
         ratio_x = ratio_cfg.get("x") or bar_x
         ratio_y = ratio_cfg.get("y") or (bar_y + bar_height + 8)
-        draw.text(
+        draw = _draw_text(
+            img,
             (ratio_x, ratio_y),
             f"{xp:,} / {next_level_xp:,} XP",
-            font=tiny_font,
-            fill=accent_color,
+            tiny_font,
+            _el_spec("xp_ratio"),
         )
 
     buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=True)
+    img.save(buf, format="PNG", optimize=png_optimize)
     buf.seek(0)
     return buf
 

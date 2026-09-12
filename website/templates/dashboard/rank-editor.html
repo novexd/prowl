@@ -188,7 +188,7 @@
   .re-color-row { margin-bottom: 0.6rem; }
   .re-color-row:last-child { margin-bottom: 0; }
   .re-color-pick { display: flex; align-items: center; gap: 0.4rem; }
-  #re-color-primary, #re-color-accent {
+  .re-swatch {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -201,12 +201,29 @@
     padding: 0;
     flex-shrink: 0;
   }
-  #re-color-primary::-webkit-color-swatch-wrapper,
-  #re-color-accent::-webkit-color-swatch-wrapper { padding: 0; }
-  #re-color-primary::-webkit-color-swatch,
-  #re-color-accent::-webkit-color-swatch { border: none; border-radius: 3px; }
-  #re-color-primary::-moz-color-swatch,
-  #re-color-accent::-moz-color-swatch { border: none; border-radius: 3px; }
+  .re-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+  .re-swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
+  .re-swatch::-moz-color-swatch { border: none; border-radius: 3px; }
+
+  /* Solid/gradient segmented toggle */
+  .re-field-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
+  .re-seg { display: inline-flex; gap: 2px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px; flex-shrink: 0; }
+  .re-seg button { border: 0; background: transparent; color: rgba(255,255,255,0.55); font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 3px; cursor: pointer; font-family: inherit; }
+  .re-seg button.on { background: rgba(139,92,246,0.4); color: #fff; }
+
+  /* Alpha slider + stop rows */
+  .re-alpha { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 0; }
+  .re-alpha input[type="range"] { flex: 1; min-width: 0; accent-color: #8b5cf6; }
+  .re-alpha span { font-size: 0.68rem; color: rgba(255,255,255,0.5); min-width: 36px; text-align: right; }
+  .re-stop { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+  .re-stop-remove { border: 1px solid rgba(255,255,255,0.14); background: transparent; color: rgba(255,255,255,0.5); border-radius: 4px; width: 26px; height: 26px; cursor: pointer; flex-shrink: 0; font-size: 0.8rem; line-height: 1; }
+  .re-stop-remove:hover { color: #fff; border-color: rgba(255,255,255,0.35); }
+  .re-stop-remove:disabled { opacity: 0.3; cursor: default; }
+  .re-add-stop { border: 1px dashed rgba(255,255,255,0.2); background: transparent; color: rgba(255,255,255,0.6); border-radius: 4px; font-size: 0.7rem; font-weight: 700; padding: 0.3rem 0; width: 100%; cursor: pointer; font-family: inherit; }
+  .re-add-stop:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+  .re-add-stop:disabled { opacity: 0.3; cursor: default; }
+  .re-dir { margin-bottom: 0.4rem; }
+  .re-el-color { max-width: 92px; margin-left: auto; flex-shrink: 0; }
 </style>
 {% endblock %}
 {% block content %}
@@ -229,11 +246,17 @@
         <div class="md-section-title">Background</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
           <button class="md-action-btn" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
-          <button class="md-action-btn" id="re-bg-solid"><i data-lucide="square"></i> Solid</button>
+          <select class="md-input" id="re-bg-mode" style="flex:1;min-width:0;">
+            <option value="image">Image</option>
+            <option value="solid">Solid</option>
+            <option value="gradient">Gradient</option>
+          </select>
         </div>
         <div class="re-gallery" id="bg-gallery">
           <div class="re-gallery-empty">Loading...</div>
         </div>
+        <div id="re-bg-solidwrap" style="display:none;"></div>
+        <div id="re-bg-gradwrap" style="display:none;"></div>
         <div class="md-behavior-desc" id="bg-status"></div>
       </div>
     </div>
@@ -249,43 +272,21 @@
         </div>
         <div id="re-overlay"></div>
       </div>
-      <div class="md-behavior-desc" style="margin-top:0.5rem;">Drag an element to move it. Drag its corner to resize. Double-click to reset its position.</div>
+      <div class="md-behavior-desc" style="margin-top:0.5rem;">Drag an element to move it. Drag its corner to resize. Right-click an element to reset its position.</div>
       <div class="md-behavior-desc" id="re-preview-status"></div>
     </div>
 
     <div class="re-side">
       <div class="re-box">
         <div class="md-section-title">Colors</div>
-        <div class="re-color-row">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Primary (bars / rank)</div>
-          <div class="re-color-pick">
-            <input type="color" id="re-color-primary" value="#ffffff" />
-            <input type="text" class="md-input" id="re-primary-hex" value="#ffffff" style="max-width:90px;" />
-          </div>
-          <div class="md-presets" id="re-primary-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
-        </div>
-        <div class="re-color-row">
-          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Accent (name / xp)</div>
-          <div class="re-color-pick">
-            <input type="color" id="re-color-accent" value="#ffffff" />
-            <input type="text" class="md-input" id="re-accent-hex" value="#ffffff" style="max-width:90px;" />
-          </div>
-          <div class="md-presets" id="re-accent-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
-        </div>
+        <div class="re-color-row" id="re-color-primary-wrap"></div>
+        <div class="re-color-row" id="re-color-accent-wrap"></div>
       </div>
 
       <div class="re-box">
         <div class="md-section-title">Elements</div>
         <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
-        <div class="md-behavior-list" id="re-element-list">
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
-        </div>
+        <div class="md-behavior-list" id="re-element-list"></div>
       </div>
     </div>
   </div>
@@ -294,5 +295,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.js"></script>
-<script defer src="/static/rank_editor.js?v=10"></script>
+<script defer src="/static/rank_editor.js?v=11"></script>
 {% endblock %}

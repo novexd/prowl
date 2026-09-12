@@ -7,7 +7,7 @@ name: Build deploy-bot branch
 on:
   push:
     branches: [website]
-    paths: ['cli/**']
+    paths: ['cli/**', 'website/static/backgrounds.json']
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,11 @@ jobs:
           mkdir -p /tmp/deploy
           cp -r cli/. /tmp/deploy/
           rm -rf /tmp/deploy/__pycache__
+          # Ship the background manifest with the bot so preview validation
+          # and rendering never depend on the bot reaching the website over
+          # HTTP (image_builder prefers this copy over the remote fetch).
+          mkdir -p /tmp/deploy/data/static
+          cp website/static/backgrounds.json /tmp/deploy/data/static/backgrounds.json
 
       - name: Rebuild deploy-bot branch
         run: |
