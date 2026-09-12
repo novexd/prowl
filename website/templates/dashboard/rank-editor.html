@@ -7,6 +7,11 @@
   #app-shell { background: #0a0a0a !important; }
 
   /* Thin dark scrollbar to match the dashboard */
+  :root { color-scheme: dark; }
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.16) transparent;
+  }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
