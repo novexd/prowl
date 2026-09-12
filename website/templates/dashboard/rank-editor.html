@@ -6,6 +6,12 @@
   body { background: #0a0a0a !important; color: #e9edf5 !important; }
   #app-shell { background: #0a0a0a !important; }
 
+  /* Thin dark scrollbar to match the dashboard */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
   .re-main { display: grid; grid-template-columns: 1fr 360px; gap: 1rem; align-items: start; }
   @media (max-width: 880px) { .re-main { grid-template-columns: 1fr; } }
 
