@@ -67,6 +67,49 @@
     display: block;
     width: 100%;
     height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  /* Drag/resize overlay (card space is 900x300; chips use % positioning) */
+  #re-overlay { position: absolute; inset: 0; z-index: 5; }
+  .re-chip {
+    position: absolute;
+    border: 1px dashed rgba(255,255,255,0.4);
+    border-radius: 4px;
+    background: rgba(139,92,246,0.08);
+    cursor: move;
+    touch-action: none;
+    box-sizing: border-box;
+  }
+  .re-chip.is-selected {
+    border: 1px solid rgba(255,255,255,0.8);
+    background: rgba(139,92,246,0.15);
+  }
+  .re-chip-tag {
+    position: absolute;
+    top: -19px;
+    left: -1px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Lexend', system-ui, sans-serif;
+    color: #e9edf5;
+    background: rgba(21,21,21,0.92);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .re-handle {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: #fff;
+    cursor: nwse-resize;
+  }
     border-radius: 4px;
   }
   @media (max-width: 1100px) {
@@ -190,13 +233,15 @@
 
     <div class="re-center">
       <div id="re-stage">
-        <img id="re-preview" alt="Rank card preview" style="display:none;" />
+        <img id="re-preview" alt="Rank card preview" style="display:none;" draggable="false" />
         <div id="re-canvas-ph">
           <i data-lucide="image"></i>
           <span>Rendering preview…</span>
         </div>
+        <div id="re-overlay"></div>
       </div>
-      <div class="md-behavior-desc" id="re-preview-status" style="margin-top:0.5rem;"></div>
+      <div class="md-behavior-desc" style="margin-top:0.5rem;">Drag an element to move it. Drag its corner to resize. Double-click to reset its position.</div>
+      <div class="md-behavior-desc" id="re-preview-status"></div>
     </div>
 
     <div class="re-side">

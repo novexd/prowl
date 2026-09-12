@@ -147,9 +147,160 @@
       if (state.config.elements[key]) inp.checked = !!state.config.elements[key].enabled;
       inp.onchange = () => {
         if (state.config.elements[key]) state.config.elements[key].enabled = inp.checked;
+        renderOverlay();
         setDirty(true);
       };
     });
+  }
+
+  /* ── Canvas overlay: drag/resize writing card-space x/y/size ── */
+  const CARD_W = 900, CARD_H = 300;
+  const OVERLAY_DEFS = {
+    avatar:   { label: "Avatar",  resize: "square" },
+    name:     { label: "Name" },
+    xp_value: { label: "XP" },
+    rank:     { label: "Rank" },
+    xp_bar:   { label: "XP bar",  resize: "rect" },
+    xp_ratio: { label: "XP ratio" },
+  };
+  let selectedEl = null;
+  let rankTextW = 110;
+
+  function measureRankText() {
+    try {
+      const ctx = document.createElement("canvas").getContext("2d");
+      ctx.font = "700 22px Lexend, sans-serif";
+      rankTextW = Math.max(40, Math.round(ctx.measureText("#3 of 284").width));
+    } catch (e) { rankTextW = 110; }
+  }
+
+  // Mirror of image_builder geometry (bot `or` semantics: 0 falls to default).
+  function geomFor(key) {
+    const els = state.config.elements;
+    const av = els.avatar || {};
+    const asize = av.size || 180;
+    const ax = av.x || 54;
+    const ay = av.y || (30 + Math.floor((240 - asize) / 2));
+    const tx = ax + asize + 24, ty = ay + 12;
+    const bar = els.xp_bar || {};
+    const bx = bar.x || tx, by = bar.y || (ay + asize - 40);
+    const bw = bar.width || (840 - (asize + 120)), bh = bar.height || 14;
+    switch (key) {
+      case "avatar": return { x: ax, y: ay, w: asize, h: asize };
+      case "name": {
+        const e = els.name || {};
+        return { x: e.x || tx, y: e.y || ty, w: 220, h: 34 };
+      }
+      case "xp_value": {
+        const e = els.xp_value || {};
+        return { x: e.x || tx, y: e.y || (ty + 42), w: 140, h: 26 };
+      }
+      case "rank": {
+        const e = els.rank || {};
+        return { x: e.x || Math.max(bx, bx + bw - rankTextW), y: e.y || (by - 24), w: 150, h: 28 };
+      }
+      case "xp_bar": return { x: bx, y: by, w: bw, h: bh };
+      case "xp_ratio": {
+        const e = els.xp_ratio || {};
+        return { x: e.x || bx, y: e.y || (by + bh + 8), w: 180, h: 22 };
+      }
+      default: return null;
+    }
+  }
+
+  function chipPos(el, g) {
+    el.style.left = (g.x / CARD_W * 100) + "%";
+    el.style.top = (g.y / CARD_H * 100) + "%";
+    el.style.width = (g.w / CARD_W * 100) + "%";
+    el.style.height = (g.h / CARD_H * 100) + "%";
+  }
+
+  function clampNum(v, lo, hi) {
+    const n = Math.round(Number(v));
+    if (isNaN(n)) return lo;
+    return Math.max(lo, Math.min(hi, n));
+  }
+
+  function renderOverlay() {
+    const layer = $("re-overlay");
+    if (!layer) return;
+    layer.innerHTML = "";
+    Object.keys(OVERLAY_DEFS).forEach(key => {
+      const cfg = state.config.elements[key];
+      if (!cfg || !cfg.enabled) return;
+      const g = geomFor(key);
+      if (!g) return;
+      const chip = document.createElement("div");
+      chip.className = "re-chip" + (selectedEl === key ? " is-selected" : "");
+      chip.dataset.el = key;
+      chipPos(chip, g);
+      chip.innerHTML = `<span class="re-chip-tag">${OVERLAY_DEFS[key].label}</span>` +
+        (OVERLAY_DEFS[key].resize ? `<span class="re-handle"></span>` : ``);
+      chip.addEventListener("pointerdown", e => onChipDown(e, key));
+      chip.addEventListener("dblclick", e => {
+        e.stopPropagation();
+        const c = state.config.elements[key];
+        if (!c) return;
+        ["x", "y", "size", "width", "height"].forEach(f => { delete c[f]; });
+        renderOverlay();
+        setDirty(true);
+      });
+      layer.appendChild(chip);
+    });
+  }
+
+  function positionChips() {
+    const layer = $("re-overlay");
+    if (!layer) return;
+    layer.querySelectorAll(".re-chip").forEach(chip => {
+      const g = geomFor(chip.dataset.el);
+      if (g) chipPos(chip, g);
+    });
+  }
+
+  function onChipDown(e, key) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectedEl = key;
+    document.querySelectorAll(".re-chip").forEach(c => c.classList.toggle("is-selected", c.dataset.el === key));
+    const stage = $("re-stage");
+    const el = state.config.elements[key];
+    if (!stage || !el) return;
+    const g0 = geomFor(key);
+    const start = {
+      x: el.x || g0.x, y: el.y || g0.y,
+      size: el.size || g0.w, width: el.width || g0.w, height: el.height || g0.h,
+    };
+    const resizing = !!(e.target.closest && e.target.closest(".re-handle"));
+    const sx = e.clientX, sy = e.clientY;
+    const move = ev => {
+      const scale = stage.clientWidth / CARD_W || 1;
+      const dx = Math.round((ev.clientX - sx) / scale);
+      const dy = Math.round((ev.clientY - sy) / scale);
+      if (resizing) {
+        if (key === "avatar") {
+          el.size = clampNum(Math.max(start.size + dx, start.size + dy), 16, 512);
+        } else if (key === "xp_bar") {
+          el.width = clampNum(start.width + dx, 50, 900);
+          el.height = clampNum(start.height + dy, 4, 100);
+        }
+      } else {
+        el.x = clampNum(start.x + dx, 0, 900);
+        el.y = clampNum(start.y + dy, 0, 300);
+      }
+      positionChips();
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      renderOverlay();
+      setDirty(true);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   }
 
   function markBgSelected(name) {
@@ -303,10 +454,19 @@
   async function init() {
     try {
       initScrollbar();
+      measureRankText();
       await loadSettings();
       refreshColorUI();
       bindToggles();
       bindStatic();
+      renderOverlay();
+      const stage = $("re-stage");
+      if (stage) stage.addEventListener("pointerdown", e => {
+        if (!e.target.closest || !e.target.closest(".re-chip")) {
+          selectedEl = null;
+          document.querySelectorAll(".re-chip").forEach(c => c.classList.remove("is-selected"));
+        }
+      });
     } catch (e) {
       if (typeof console !== "undefined") console.error("rank-editor init failed:", e);
     }
