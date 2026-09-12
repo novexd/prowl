@@ -107,22 +107,17 @@
     renderTimer = setTimeout(renderPreview, 450);
   }
 
+  const POLL_MS = 1500, POLL_MAX = 45;
+
   async function renderPreview() {
     const img = $("re-preview"), ph = $("re-canvas-ph"), st = $("re-preview-status");
     const my = ++renderSeq;
-    if (st) st.textContent = "Rendering preview…";
-    try {
-      const res = await fetch("/api/v1/user/rank-preview/render", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: state.config }),
-      });
-      if (!res.ok) {
-        let msg = `Preview failed (HTTP ${res.status}).`;
-        try { const d = await res.json(); if (d && d.error) msg = d.error; } catch (e) {}
-        throw new Error(msg);
-      }
-      const blob = await res.blob();
+    const fail = msg => {
+      if (my !== renderSeq) return;
+      if (ph) ph.style.display = "";
+      if (st) st.textContent = msg;
+    };
+    const show = blob => {
       if (my !== renderSeq) return;
       const url = URL.createObjectURL(blob);
       if (previewURL) URL.revokeObjectURL(previewURL);
@@ -130,11 +125,40 @@
       if (img) { img.src = url; img.style.display = "block"; }
       if (ph) ph.style.display = "none";
       if (st) st.textContent = "";
+    };
+    if (st) st.textContent = "Rendering preview…";
+    let job;
+    try {
+      const res = await fetch("/api/v1/user/rank-preview/render", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: state.config }),
+      });
+      job = await res.json().catch(() => ({}));
+      if (!res.ok || !job.job_id) throw new Error((job && job.error) || `Preview failed (HTTP ${res.status}).`);
     } catch (err) {
-      if (my !== renderSeq) return;
-      if (ph) ph.style.display = "";
-      if (st) st.textContent = String((err && err.message) || err);
+      fail(String((err && err.message) || err));
+      return;
     }
+    for (let i = 0; i < POLL_MAX; i++) {
+      if (my !== renderSeq) return;
+      await new Promise(r => setTimeout(r, POLL_MS));
+      if (my !== renderSeq) return;
+      try {
+        const res = await fetch(`/api/v1/user/rank-preview/result/${encodeURIComponent(job.job_id)}`, { credentials: "include" });
+        if (res.headers.get("content-type", "").startsWith("image/")) {
+          show(await res.blob());
+          return;
+        }
+        const d = await res.json().catch(() => ({}));
+        if (d && d.ready === false) continue;
+        throw new Error((d && (d.error || d.message)) || `Preview failed (HTTP ${res.status}).`);
+      } catch (err) {
+        fail(String((err && err.message) || err));
+        return;
+      }
+    }
+    fail("Preview timed out — the bot may be warming up. Try again in a moment.");
   }
 
   function refreshColorUI() {

@@ -10,7 +10,8 @@ Endpoints:
   GET  /health            -> {"ok": true, "bot": ..., "guilds": N}
   POST /api/action        -> execute a moderation quick-action immediately
   GET  /api/stats/actions -> last 24h hourly dashboard-action counts (in-memory)
-  POST /api/rank_preview  -> render a rank card PNG with the real image_builder
+  POST /api/rank_preview  -> enqueue a rank card render, returns {job_id} fast
+  GET  /api/rank_preview/{job_id} -> poll: {ready:false} or the PNG bytes
                            (website rank-editor preview; strictly validated)
 
 Set BOT_HTTP_TOKEN in cli/.env and the website env. Port defaults to 24612
@@ -23,6 +24,7 @@ import time
 import hmac
 import asyncio
 import logging
+import uuid
 
 import discord
 from aiohttp import web
@@ -218,22 +220,28 @@ def _sanitize_preview_config(raw_cfg, manifest_ids: set) -> dict:
     return clean
 
 
-async def handle_rank_preview(request):
-    if not await _check_auth(request):
-        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+# Preview jobs: dispatch returns instantly; the render runs detached so slow
+# first-renders (cold background downloads) can never trap the caller in a
+# serverless timeout. Results are PNG bytes held briefly in memory.
+_PREVIEW_JOBS = {}
+_PREVIEW_JOB_TTL = 300
+_PREVIEW_JOB_MAX = 50
+
+
+def _preview_job_sweep():
+    now = time.monotonic()
+    for jid in [k for k, j in _PREVIEW_JOBS.items() if now - j["at"] > _PREVIEW_JOB_TTL]:
+        _PREVIEW_JOBS.pop(jid, None)
+    while len(_PREVIEW_JOBS) > _PREVIEW_JOB_MAX:
+        _PREVIEW_JOBS.pop(next(iter(_PREVIEW_JOBS)), None)
+
+
+async def _run_preview_job(job_id: str, clean: dict, pv: dict):
+    job = _PREVIEW_JOBS.get(job_id)
+    if job is None:
+        return
     try:
-        body = await request.json()
-    except Exception:
-        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
-    if not isinstance(body, dict):
-        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
-    try:
-        from components.image_builder import create_rank_card, _load_manifest_entries
-        entries = await _load_manifest_entries()
-        clean = _sanitize_preview_config(body.get("config"), {e["id"] for e in entries})
-        pv = body.get("preview") or {}
-        if not isinstance(pv, dict):
-            pv = {}
+        from components.image_builder import create_rank_card
         try:
             uid = int(pv.get("user_id") or 0)
         except (TypeError, ValueError):
@@ -253,12 +261,57 @@ async def handle_rank_preview(request):
             guild_name="Preview",
             config=clean,
         )
-        return web.Response(body=buf.getvalue(), content_type="image/png")
+        job["png"] = buf.getvalue()
+        job["ready"] = True
+    except Exception as e:
+        logger.warning(f"Rank preview render failed: {e}")
+        job["error"] = "render failed"
+        job["ready"] = True
+
+
+async def handle_rank_preview(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+    if not isinstance(body, dict):
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+    try:
+        from components.image_builder import _load_manifest_entries
+        entries = await _load_manifest_entries()
+        clean = _sanitize_preview_config(body.get("config"), {e["id"] for e in entries})
     except ValueError as e:
         return web.json_response({"ok": False, "error": str(e) or "invalid config"}, status=400)
     except Exception as e:
-        logger.warning(f"Rank preview render failed: {e}")
-        return web.json_response({"ok": False, "error": "render failed"}, status=500)
+        logger.warning(f"Rank preview validation failed: {e}")
+        return web.json_response({"ok": False, "error": "invalid config"}, status=400)
+    pv = body.get("preview") or {}
+    if not isinstance(pv, dict):
+        pv = {}
+    _preview_job_sweep()
+    job_id = uuid.uuid4().hex
+    _PREVIEW_JOBS[job_id] = {"at": time.monotonic(), "ready": False, "png": None, "error": None}
+    asyncio.create_task(_run_preview_job(job_id, clean, pv))
+    return web.json_response({"ok": True, "job_id": job_id})
+
+
+async def handle_rank_preview_result(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    job_id = request.match_info.get("job_id", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id):
+        return web.json_response({"ok": False, "error": "invalid job_id"}, status=400)
+    _preview_job_sweep()
+    job = _PREVIEW_JOBS.get(job_id)
+    if job is None:
+        return web.json_response({"ok": False, "error": "unknown or expired job"}, status=404)
+    if not job["ready"]:
+        return web.json_response({"ok": True, "ready": False})
+    if job["error"]:
+        return web.json_response({"ok": False, "error": job["error"]}, status=500)
+    return web.Response(body=job["png"], content_type="image/png")
 
 
 # ── Per-guild bot profile (nickname / avatar / banner) ──
@@ -489,6 +542,7 @@ async def start_http_server():
     app.router.add_post("/api/gc/deploy_panel", handle_gc_deploy_panel)
     app.router.add_post("/api/gc/remove_panel", handle_gc_remove_panel)
     app.router.add_post("/api/rank_preview", handle_rank_preview)
+    app.router.add_get("/api/rank_preview/{job_id}", handle_rank_preview_result)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

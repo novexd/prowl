@@ -3691,11 +3691,16 @@ PREVIEW_SAMPLE = {
 }
 
 
+def _bridge_client():
+    return httpx.AsyncClient(timeout=15)
+
+
 @app.post("/api/v1/user/rank-preview/render")
 async def user_rank_preview_render(request: Request):
-    """Render the editor's current (possibly unsaved) config with the bot's
-    real image_builder and stream the PNG back. Bot owns validation; the
-    bridge token never leaves the server. Bot offline -> 503."""
+    """Dispatch the editor's current (possibly unsaved) config to the bot for
+    rendering and return {job_id} immediately. Every hop stays fast so no
+    serverless timeout can trigger; the browser polls /result/ below. Bot
+    owns validation; the bridge token never leaves the server."""
     user = await require_auth(request)
     if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
         return JSONResponse({"error": "bot bridge not configured"}, status_code=503)
@@ -3714,7 +3719,7 @@ async def user_rank_preview_render(request: Request):
         },
     }
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with _bridge_client() as client:
             r = await client.post(
                 BOT_SERVER_URL.rstrip("/") + "/api/rank_preview",
                 json=payload,
@@ -3728,7 +3733,37 @@ async def user_rank_preview_render(request: Request):
         except Exception:
             detail = None
         return JSONResponse({"error": detail or f"bot responded {r.status_code}"}, status_code=502)
-    return Response(content=r.content, media_type="image/png")
+    try:
+        job_id = r.json().get("job_id")
+    except Exception:
+        job_id = None
+    if not job_id:
+        return JSONResponse({"error": "bot did not return a job"}, status_code=502)
+    return {"job_id": job_id}
+
+
+@app.get("/api/v1/user/rank-preview/result/{job_id}")
+async def user_rank_preview_result(job_id: str, request: Request):
+    """Poll a preview render. Pending -> {ready: False}; done -> PNG bytes."""
+    await require_auth(request)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id or ""):
+        return JSONResponse({"error": "invalid job_id"}, status_code=400)
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "bot bridge not configured"}, status_code=503)
+    try:
+        async with _bridge_client() as client:
+            r = await client.get(
+                BOT_SERVER_URL.rstrip("/") + f"/api/rank_preview/{job_id}",
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+    except Exception as e:
+        return JSONResponse({"error": f"bot unreachable: {e}"}, status_code=503)
+    if r.headers.get("content-type", "").startswith("image/"):
+        return Response(content=r.content, media_type="image/png")
+    try:
+        return JSONResponse(r.json(), status_code=r.status_code)
+    except Exception:
+        return JSONResponse({"error": f"bot responded {r.status_code}"}, status_code=502)
 
 
 @app.get("/rank-editor")
