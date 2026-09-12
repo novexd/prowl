@@ -44,6 +44,7 @@
   let bgList = [];
   let renderTimer = null, renderSeq = 0, previewURL = null;
   let previewName = "Username";
+  let bgModeSelect = null;
   const colorSlots = [];
   const DEBUG = true;
 
@@ -106,6 +107,52 @@
   }
   function alphaPct(c) {
     return Math.round((normSolid(c)[3] / 255) * 100);
+  }
+
+  function closeAllCustomSelects() {
+    document.querySelectorAll(".md-custom-select-drop.is-open").forEach(d => d.classList.remove("is-open"));
+  }
+
+  /* Dashboard-style dropdown (md-custom-select pattern): button + drop list,
+   * so the open menu is styled instead of the OS-native white popup. */
+  function customSelect(parent, opts) {
+    const wrap = document.createElement("div");
+    wrap.className = "md-custom-select " + (opts.className || "");
+    if (opts.title) wrap.setAttribute("data-tooltip", opts.title);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "md-custom-select-btn";
+    const drop = document.createElement("div");
+    drop.className = "md-custom-select-drop";
+    function render() {
+      const cur = opts.value();
+      const found = opts.options.find(o => o[0] === cur);
+      btn.textContent = found ? found[1] : String(cur);
+      drop.innerHTML = "";
+      opts.options.forEach(([val, text]) => {
+        const o = document.createElement("button");
+        o.type = "button";
+        o.className = "md-custom-opt";
+        o.textContent = text;
+        o.addEventListener("click", (e) => {
+          e.stopPropagation();
+          drop.classList.remove("is-open");
+          if (val !== opts.value()) opts.onPick(val);
+        });
+        drop.appendChild(o);
+      });
+    }
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const was = drop.classList.contains("is-open");
+      closeAllCustomSelects();
+      if (!was) drop.classList.add("is-open");
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(drop);
+    if (parent) parent.appendChild(wrap);
+    render();
+    return { refresh: render, close: () => drop.classList.remove("is-open") };
   }
 
   /* Reusable solid/gradient color editor.
@@ -184,22 +231,20 @@
 
     function gradientBody(grad) {
       const body = document.createElement("div");
-      const dirSel = document.createElement("select");
-      dirSel.className = "md-select re-dir";
-      GRADIENT_DIRS.forEach(([val, label]) => {
-        const o = document.createElement("option");
-        o.value = val;
-        o.textContent = label;
-        if (val === grad.direction) o.selected = true;
-        dirSel.appendChild(o);
+      const dirWrap = document.createElement("div");
+      dirWrap.className = "re-dir";
+      const dirSel = customSelect(dirWrap, {
+        value: () => normGradient(get()).direction,
+        options: GRADIENT_DIRS,
+        onPick: (v) => {
+          const g = normGradient(get());
+          g.direction = v;
+          set(g);
+          dirSel.refresh();
+          setDirty(true);
+        },
       });
-      dirSel.addEventListener("change", () => {
-        const g = normGradient(get());
-        g.direction = dirSel.value;
-        set(g);
-        setDirty(true);
-      });
-      body.appendChild(dirSel);
+      body.appendChild(dirWrap);
       grad.colors.forEach((_, i) => body.appendChild(stopRow(grad, i)));
       const add = document.createElement("button");
       add.type = "button";
@@ -429,23 +474,25 @@
       textWrap.appendChild(text);
       item.appendChild(textWrap);
       if (COLOR_ELEMENTS.includes(key)) {
-        const sel = document.createElement("select");
-        sel.className = "md-select re-el-color";
-        sel.setAttribute("data-tooltip", "Color source");
-        [["primary", "Primary"], ["accent", "Accent"]].forEach(([val, textContent]) => {
-          const o = document.createElement("option");
-          o.value = val;
-          o.textContent = textContent;
-          sel.appendChild(o);
-        });
-        sel.value = (cfg.color === "primary" || cfg.color === "accent")
+        const selWrap = document.createElement("div");
+        selWrap.className = "re-el-color";
+        const dflt = (cfg.color === "primary" || cfg.color === "accent")
           ? cfg.color
           : (DEFAULTS.elements[key].color || "accent");
-        sel.addEventListener("change", () => {
-          if (state.config.elements[key]) state.config.elements[key].color = sel.value;
-          setDirty(true);
+        const sel = customSelect(selWrap, {
+          title: "Color source",
+          value: () => {
+            const c = (state.config.elements[key] || {}).color;
+            return (c === "primary" || c === "accent") ? c : dflt;
+          },
+          options: [["primary", "Primary"], ["accent", "Accent"]],
+          onPick: (v) => {
+            if (state.config.elements[key]) state.config.elements[key].color = v;
+            sel.refresh();
+            setDirty(true);
+          },
         });
-        item.appendChild(sel);
+        item.appendChild(selWrap);
       }
       list.appendChild(item);
     });
@@ -528,7 +575,7 @@
         const e = els.name || {};
         const nx = e.x || tx;
         const t = measureTitle(nx);
-        return { x: nx, y: e.y || ty, w: t.w + 8, h: t.h + 8 };
+        return { x: nx, y: e.y || ty, w: t.w + 24, h: t.h + 8 };
       }
       case "xp_value": {
         const e = els.xp_value || {};
@@ -661,8 +708,7 @@
 
   function refreshBgPanels() {
     const mode = bgModeOf(state.config.background);
-    const sel = $("re-bg-mode");
-    if (sel) sel.value = mode;
+    if (bgModeSelect) bgModeSelect.refresh();
     const gal = $("bg-gallery"), solid = $("re-bg-solidwrap"), grad = $("re-bg-gradwrap");
     if (gal) gal.style.display = mode === "image" ? "" : "none";
     if (solid) solid.style.display = mode === "solid" ? "" : "none";
@@ -779,8 +825,16 @@
       setDirty(true);
     });
 
-    const modeSel = $("re-bg-mode");
-    if (modeSel) modeSel.addEventListener("change", () => setBgMode(modeSel.value));
+    const modeWrap = $("re-bg-mode-wrap");
+    if (modeWrap) {
+      modeWrap.innerHTML = "";
+      bgModeSelect = customSelect(modeWrap, {
+        className: "re-bg-mode-sel",
+        value: () => bgModeOf(state.config.background),
+        options: [["image", "Image"], ["solid", "Solid"], ["gradient", "Gradient"]],
+        onPick: (v) => setBgMode(v),
+      });
+    }
 
     colorSlots.length = 0;
     colorSlots.push(colorField($("re-color-primary-wrap"), {
@@ -877,6 +931,7 @@
       renderOverlay();
       const stage = $("re-stage");
       if (stage) stage.addEventListener("pointerdown", e => {
+        closeAllCustomSelects();
         if (!e.target.closest || !e.target.closest(".re-chip")) {
           selectedEl = null;
           document.querySelectorAll(".re-chip").forEach(c => c.classList.remove("is-selected"));
@@ -908,4 +963,6 @@
   } else {
     init();
   }
+
+  document.addEventListener("click", () => closeAllCustomSelects());
 })();

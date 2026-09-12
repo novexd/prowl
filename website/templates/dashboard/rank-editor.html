@@ -223,13 +223,15 @@
   .re-add-stop:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
   .re-add-stop:disabled { opacity: 0.3; cursor: default; }
   .re-dir { margin-bottom: 0.4rem; }
-  /* Dashboard-styled native selects, sized to fit the narrow side columns */
-  .re-fs select.md-select { min-width: 0; }
-  #re-bg-mode { flex: 1; min-width: 0; }
-  .re-dir select.md-select { width: 100%; }
-  .re-el-color { width: auto !important; max-width: 88px; flex-shrink: 0; padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; font-size: 0.72rem !important; }
-  /* Keep element rows inside the 300px column: shrinkable ellipsis label */
-  #re-element-list .md-behavior-item { gap: 0.5rem; padding: 0.5rem; }
+  /* Dashboard custom dropdowns, sized to fit the narrow side columns */
+  .re-fs .md-custom-select { min-width: 0; }
+  .re-bg-mode-sel, .re-bg-mode-sel .md-custom-select-btn { width: 100%; }
+  .re-dir .md-custom-select, .re-dir .md-custom-select-btn { width: 100%; }
+  .re-el-color { width: 86px; flex-shrink: 0; margin-left: auto; }
+  .re-el-color .md-custom-select-btn { width: 100%; font-size: 0.72rem; padding: 0.3rem 1.4rem 0.3rem 0.5rem; }
+  /* Keep element rows inside the 300px column: border-box + ellipsis label */
+  #re-element-list .md-behavior-item, #re-element-list .md-behavior-item * { box-sizing: border-box; }
+  #re-element-list .md-behavior-item { gap: 0.5rem; padding: 0.45rem 0.5rem; }
   #re-element-list .md-behavior-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #re-element-list .md-behavior-item > div { min-width: 0; }
   /* Dashboard tooltip look (dashboard.js is not loaded on this page; the
@@ -271,11 +273,7 @@
         <div class="md-section-title">Background</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
           <button class="md-action-btn" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
-          <select class="md-select" id="re-bg-mode" style="flex:1;min-width:0;">
-            <option value="image">Image</option>
-            <option value="solid">Solid</option>
-            <option value="gradient">Gradient</option>
-          </select>
+          <div id="re-bg-mode-wrap" style="flex:1;min-width:0;"></div>
         </div>
         <div class="re-gallery" id="bg-gallery">
           <div class="re-gallery-empty">Loading...</div>
@@ -321,5 +319,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.js"></script>
-<script defer src="/static/rank_editor.js?v=13"></script>
+<script defer src="/static/rank_editor.js?v=14"></script>
 {% endblock %}
