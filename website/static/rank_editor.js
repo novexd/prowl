@@ -206,7 +206,18 @@
     });
   }
 
+  function initScrollbar() {
+    // JS-drawn scrollbar: identical look in every browser, even ones
+    // without native scrollbar styling. Falls back to native on failure.
+    try {
+      if (window.SimpleBar && window.ResizeObserver) {
+        new SimpleBar(document.getElementById("app-shell"), { autoHide: false });
+      }
+    } catch (e) { /* native scrollbar fallback */ }
+  }
+
   async function init() {
+    initScrollbar();
     await loadSettings();
     refreshColorUI();
     bindToggles();

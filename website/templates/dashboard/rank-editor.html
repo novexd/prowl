@@ -1,7 +1,21 @@
 {% extends "dashboard/base_minimal.html" %}
 {% block styles %}
 <link rel="stylesheet" href="/static/moderation.css?v=21" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.css" />
 <style>
+  /* Full-page custom scrollbar: SimpleBar takes over #app-shell scrolling */
+  html, body { height: 100%; overflow: hidden; }
+  #app-shell { height: 100vh; max-height: 100vh; }
+  /* SimpleBar dark thumb to match the dashboard */
+  .simplebar-track.simplebar-vertical { background: transparent; }
+  .simplebar-track.simplebar-vertical .simplebar-scrollbar:before {
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    opacity: 1;
+  }
+  .simplebar-track.simplebar-vertical .simplebar-scrollbar:hover:before {
+    background: rgba(255,255,255,0.12);
+  }
   /* Dark dashboard look on top of the light base_minimal shell */
   body { background: #0a0a0a !important; color: #e9edf5 !important; }
   #app-shell { background: #0a0a0a !important; }
@@ -175,5 +189,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script defer src="/static/rank_editor.js?v=6"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.js"></script>
+<script defer src="/static/rank_editor.js?v=7"></script>
 {% endblock %}
