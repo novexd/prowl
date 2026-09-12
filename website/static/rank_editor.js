@@ -136,11 +136,18 @@
     g.innerHTML = bgList.map(entry => {
       // Manifest objects {id, url, thumb} or legacy filename strings.
       const id = typeof entry === "string" ? entry : entry.id;
-      const src = typeof entry === "string"
+      const raw = typeof entry === "string"
         ? `/api/v1/user/backgrounds/${encodeURIComponent(entry)}`
         : (entry.thumb || entry.url);
+      // Full-res files (6K+) load through a resize proxy for thumbs;
+      // falls back to the raw URL if the proxy ever fails.
+      let src = raw;
+      if (/^https?:\/\//i.test(raw)) {
+        const hostpath = raw.replace(/^https?:\/\//i, "");
+        src = `https://images.weserv.nl/?url=${hostpath}&w=320&q=70&output=jpg`;
+      }
       const safe = String(id).replace(/"/g, "");
-      return `<img class="bg-thumb" src="${src}" data-name="${safe}" alt="${safe}" loading="lazy" />`;
+      return `<img class="bg-thumb" src="${src}" data-name="${safe}" alt="${safe}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${raw}';" />`;
     }).join("");
     g.querySelectorAll(".bg-thumb").forEach(thumb => {
       if (thumb.dataset.name === state.config.background) thumb.classList.add("selected");

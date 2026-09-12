@@ -287,7 +287,7 @@ def _csp_header():
         _csp_extra["img_hosts"] = sorted(hosts)
         _csp_extra["at"] = now
     extra = " ".join(_csp_extra["img_hosts"])
-    base_img = "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone"
+    base_img = "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone https://images.weserv.nl"
     if extra:
         return CSP.replace(base_img, base_img + " " + extra)
     return CSP
