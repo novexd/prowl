@@ -460,8 +460,11 @@ class SubdomainRouteMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # prowlbot.xyz: main website; API routes should live on the API subdomain
-        if is_main_host and path.startswith("/api/") and not path.startswith("/api/v1/turnstile"):
+        # prowlbot.xyz: main website; API routes should live on the API subdomain.
+        # Rank-preview dispatch/poll must stay same-origin — the 307 fires
+        # *before* CORS middleware, so the redirect response gets no
+        # Access-Control-Allow-Origin header and the browser blocks it.
+        if is_main_host and path.startswith("/api/") and not path.startswith("/api/v1/turnstile") and not path.startswith("/api/v1/user/rank-preview"):
             from starlette.responses import RedirectResponse
             new_path = f"https://api.prowlbot.xyz{path}"
             if query:
