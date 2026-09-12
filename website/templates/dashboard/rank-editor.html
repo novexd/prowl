@@ -1,159 +1,168 @@
 {% extends "dashboard/base_minimal.html" %}
 {% block styles %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/grapesjs@0.23.6/dist/css/grapes.min.css" />
+<link rel="stylesheet" href="/static/moderation.css?v=21" />
 <style>
-  .re-root { color: var(--text,#111827); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  .re-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem; }
-  .re-title { font-size:1.6rem; font-weight:800; margin:0; }
-  .re-subtitle { color: var(--text-dim,#6b7280); font-size:.85rem; margin-top:.25rem; }
-  .re-header-actions { display:flex; gap:.5rem; align-items:center; }
-  .re-main { display:grid; grid-template-columns: 1fr 360px; gap:1.5rem; align-items:start; }
+  /* Dark dashboard look on top of the light base_minimal shell */
+  body { background: #0a0a0a !important; color: #e9edf5 !important; }
+  #app-shell { background: #0a0a0a !important; }
+
+  .re-main { display: grid; grid-template-columns: 1fr 360px; gap: 1rem; align-items: start; }
   @media (max-width: 880px) { .re-main { grid-template-columns: 1fr; } }
 
-  .re-btn {
-    display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
-    border:1px solid var(--input-border,#d1d5db); border-radius:8px;
-    background:#fff; color:var(--text,#111827); font:inherit; font-weight:600;
-    padding:.55rem .9rem; font-size:.85rem; cursor:pointer;
-    transition:background .15s ease, border-color .15s ease, box-shadow .15s ease;
-    outline:none;
+  .re-box {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.015);
+    padding: 1rem;
   }
-  .re-btn:hover { background:#f3f4f6; }
-  .re-btn:focus-visible { box-shadow:0 0 0 3px rgba(99,102,245,.25); }
-  .re-btn-ghost { background:#fff; border-color:var(--card-border,#e5e7eb); }
-  .re-btn-ghost:hover { background:#f8fafc; }
-  .re-btn-primary { background:var(--accent,#6366f1); color:#fff; border-color:var(--accent,#6366f1); }
-  .re-btn-primary:hover { background:var(--accent-hover,#4f51e3); }
-  .re-btn-primary:disabled { opacity:.6; cursor:progress; }
-  .re-btn-sm { padding:.4rem .7rem; font-size:.78rem; }
+  .re-box + .re-box { margin-top: 1rem; }
 
-  .re-panel {
-    background:#fff; border:1px solid var(--card-border,#e5e7eb); border-radius:12px;
-    padding:1rem; box-shadow:0 1px 2px rgba(15,23,42,.04);
+  /* Canvas placeholder (real editor comes later) */
+  #re-canvas {
+    aspect-ratio: 3 / 1;
+    width: 100%;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.015);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.8rem;
+    font-weight: 600;
   }
-  .re-panel + .re-panel { margin-top:1rem; }
-  .re-panel-title { font-size:.8rem; font-weight:700; color:var(--text-dim,#6b7280);
-    letter-spacing:.03em; text-transform:uppercase; margin-bottom:.7rem; }
-  .re-field-label { font-size:.78rem; font-weight:600; color:var(--text,#111827); margin-bottom:.3rem; display:block; }
-  .re-input {
-    width:100%; padding:.5rem .7rem; border:1px solid var(--input-border,#d1d5db); border-radius:8px;
-    background:var(--input-bg,#fff); color:var(--text,#111827); font:inherit; font-size:.85rem;
-    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
-  }
-  .re-input::placeholder { color:var(--text-dim,#9ca3af); }
-  .re-input:focus { border-color:var(--accent,#6366f1); box-shadow:0 0 0 3px rgba(99,102,245,.15); }
+  #re-canvas svg { width: 22px; height: 22px; color: rgba(255,255,255,0.2); }
 
-  .re-switch { display:flex; align-items:center; gap:.6rem; cursor:pointer; padding:.3rem 0; user-select:none; }
-  .re-switch input { opacity:0; width:0; height:0; }
-  .re-slider {
-    width:40px; height:22px; border-radius:999px; background:#cbd5e1;
-    display:block; position:relative; transition:background .2s; flex-shrink:0;
-    box-shadow:inset 0 1px 2px rgba(0,0,0,.1);
+  /* Background gallery */
+  .re-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
   }
-  .re-switch input:checked + .re-slider { background:var(--accent,#6366f5); }
-  .re-slider::after {
-    content:""; position:absolute; top:3px; left:3px; width:16px; height:16px;
-    border-radius:50%; background:#fff; transition:transform .2s;
-  }
-  .re-switch input:checked + .re-slider::after { transform:translateX(18px); }
-  .re-switch-label { font-size:.82rem; color:var(--text,#111827); }
-
-  .re-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:.6rem; margin-bottom:.6rem; }
   .re-gallery .bg-thumb {
-    width:100%; height:56px; object-fit:cover; border:2px solid transparent; border-radius:8px; cursor:pointer;
-    opacity:.7; transition:opacity .15s, border-color .15s;
+    width: 100%;
+    height: 56px;
+    object-fit: cover;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s, border-color 0.15s;
+    background: rgba(255,255,255,0.04);
   }
-  .re-gallery .bg-thumb:hover { opacity:1; }
-  .re-gallery .bg-thumb.selected { border-color:var(--accent,#6366f5); opacity:1; }
-  .re-gallery-empty { color:var(--text-dim,#9ca3af); font-size:.78rem; text-align:center; padding:1rem 0; }
-
-  .re-preview-pane { display:flex; flex-direction:column; align-items:center; gap:.5rem; }
-  .re-preview-chrome {
-    background:#fff; border:1px solid var(--card-border,#e5e7eb); border-radius:14px; padding:1rem;
-    box-shadow:0 4px 14px rgba(15,23,42,.06);
+  .re-gallery .bg-thumb:hover { opacity: 1; }
+  .re-gallery .bg-thumb.selected { border-color: rgba(255,255,255,0.5); opacity: 1; }
+  .re-gallery-empty {
+    color: rgba(255,255,255,0.25);
+    font-size: 0.78rem;
+    text-align: center;
+    padding: 1rem 0;
   }
-  .rc-card { position:relative; width:900px; height:300px; max-width:100%; }
-  .re-hint { color:var(--text-dim,#6b7280); font-size:.76rem; text-align:center; margin-top:.2rem; }
 
-  /* GrapesJS canvas */
-  #gjs { height:300px; width:100%; border:1px solid var(--card-border,#e5e7eb); border-radius:12px; }
-  .gjs-editor-row { background:#fff !important; }
-  .gjs-panels { background:#fff !important; }
-  .gjs-panel { background:#fff !important; }
-  .gjs-toolbar { background:#f8fafc !important; }
-  .gjs-block { background:#fff !important; border:1px solid var(--card-border,#e5e7eb) !important; }
-  .gjs-selected { outline:2px solid var(--accent,#6366f1) !important; }
+  /* Color rows (mirrors the embed-editor color pattern) */
+  .re-color-row { margin-bottom: 0.6rem; }
+  .re-color-row:last-child { margin-bottom: 0; }
+  .re-color-pick { display: flex; align-items: center; gap: 0.4rem; }
+  #re-color-primary, #re-color-accent {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 36px;
+    height: 32px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 4px;
+    background: #1a1a1a;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  #re-color-primary::-webkit-color-swatch-wrapper,
+  #re-color-accent::-webkit-color-swatch-wrapper { padding: 0; }
+  #re-color-primary::-webkit-color-swatch,
+  #re-color-accent::-webkit-color-swatch { border: none; border-radius: 3px; }
+  #re-color-primary::-moz-color-swatch,
+  #re-color-accent::-moz-color-swatch { border: none; border-radius: 3px; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="re-root">
-  <div class="re-header">
+<div style="padding:2rem 0;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
-      <h1 class="re-title">Rank Card Editor</h1>
-      <p class="re-subtitle">Drag elements on the canvas to reposition them. Changes save to your per-user rank card config.</p>
+      <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Rank Card Editor</h1>
+      <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Customize your personal rank card. Changes save to your account.</p>
     </div>
-    <div class="re-header-actions">
-      <button class="re-btn re-btn-ghost" id="re-reset"><i data-lucide="rotate-ccw"></i> Reset</button>
-      <button class="re-btn re-btn-primary" id="re-save"><i data-lucide="save"></i> Save</button>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <button class="md-action-btn" id="re-reset"><i data-lucide="rotate-ccw"></i> Reset</button>
+      <button class="md-action-btn" id="re-save" style="background:rgba(255,255,255,0.1);color:#e9edf5;"><i data-lucide="save"></i> Save</button>
     </div>
   </div>
 
   <div class="re-main">
-    <div class="re-panel" style="flex:1; min-width:0;">
-      <div class="re-panel-title">Canvas</div>
-      <div id="gjs"></div>
-      <p class="re-hint">Drag elements to reposition. Use Ctrl/Cmd+Z to undo.</p>
+    <div class="re-box">
+      <div class="md-section-title">Canvas</div>
+      <div id="re-canvas">
+        <i data-lucide="image"></i>
+        <span>Canvas editor coming soon</span>
+      </div>
+      <div class="md-behavior-desc">Preview and drag-to-position arrive in the next step. Everything below already saves.</div>
     </div>
 
-    <div class="re-controls-pane">
-      <div class="re-panel">
-        <div class="re-panel-title">Background</div>
-        <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
-          <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
-          <button class="re-btn re-btn-ghost re-btn-sm" id="re-bg-solid"><i data-lucide="square"></i> Solid</button>
+    <div>
+      <div class="re-box">
+        <div class="md-section-title">Background</div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
+          <button class="md-action-btn" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
+          <button class="md-action-btn" id="re-bg-solid"><i data-lucide="square"></i> Solid</button>
         </div>
         <div class="re-gallery" id="bg-gallery">
           <div class="re-gallery-empty">Loading...</div>
         </div>
-        <label class="re-field-label">Custom filename</label>
-        <input type="text" class="re-input" id="re-bg-custom" placeholder="e.g. nebula.png" />
+        <div class="md-behavior-label" style="margin-bottom:0.3rem;">Custom filename</div>
+        <input type="text" class="md-input" id="re-bg-custom" placeholder="e.g. nebula.png" />
       </div>
 
-      <div class="re-panel">
-        <div class="re-panel-title">Colors</div>
+      <div class="re-box">
+        <div class="md-section-title">Colors</div>
         <div class="re-color-row">
-          <span class="re-color-label">Primary (bars / rank)</span>
-          <div class="re-color">
-            <div class="re-color-swatch" id="re-primary-swatch" style="--c:#ffffff"></div>
-            <input type="color" class="re-color-input" id="re-color-primary" value="#ffffff" />
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Primary (bars / rank)</div>
+          <div class="re-color-pick">
+            <input type="color" id="re-color-primary" value="#ffffff" />
+            <input type="text" class="md-input" id="re-primary-hex" value="#ffffff" style="max-width:90px;" />
           </div>
+          <div class="md-presets" id="re-primary-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
         </div>
         <div class="re-color-row">
-          <span class="re-color-label">Accent (name / xp)</span>
-          <div class="re-color">
-            <div class="re-color-swatch" id="re-accent-swatch" style="--c:#ffffff"></div>
-            <input type="color" class="re-color-input" id="re-color-accent" value="#ffffff" />
+          <div class="md-behavior-label" style="margin-bottom:0.3rem;">Accent (name / xp)</div>
+          <div class="re-color-pick">
+            <input type="color" id="re-color-accent" value="#ffffff" />
+            <input type="text" class="md-input" id="re-accent-hex" value="#ffffff" style="max-width:90px;" />
           </div>
+          <div class="md-presets" id="re-accent-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
         </div>
       </div>
 
-      <div class="re-panel">
-        <div class="re-panel-title">Elements</div>
-        <div class="re-element-list" id="re-element-list">
-          <label class="re-switch"><input type="checkbox" data-el="panel" checked /><span class="re-slider"></span><span class="re-switch-label">Dark panel</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="avatar" checked /><span class="re-slider"></span><span class="re-switch-label">Avatar</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="name" checked /><span class="re-slider"></span><span class="re-switch-label">Name &amp; Level</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="xp_value" checked /><span class="re-slider"></span><span class="re-switch-label">XP value</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="rank" checked /><span class="re-slider"></span><span class="re-switch-label">Rank</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="xp_bar" checked /><span class="re-slider"></span><span class="re-switch-label">XP bar</span></label>
-          <label class="re-switch"><input type="checkbox" data-el="xp_ratio" checked /><span class="re-slider"></span><span class="re-switch-label">XP ratio text</span></label>
+      <div class="re-box">
+        <div class="md-section-title">Elements</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
+        <div class="md-behavior-list" id="re-element-list">
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
         </div>
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}
 {% block scripts %}
-<script defer src="https://cdn.jsdelivr.net/npm/grapesjs@0.23.6/dist/grapes.min.js"></script>
-<script defer src="/static/rank_editor.js?v=5"></script>
+<script defer src="/static/rank_editor.js?v=6"></script>
 {% endblock %}
