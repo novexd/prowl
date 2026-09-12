@@ -208,6 +208,7 @@ def _rank_cfg(config):
         "background": _sanitize_background(config.get("background", "random")),
         "primary_color": _color_spec(config.get("primary_color")),
         "accent_color": _color_spec(config.get("accent_color")),
+        "panel_color": _color_spec(config.get("panel_color"), (10, 10, 16, 170)),
         "elements": {},
     }
     defaults = base["elements"]
@@ -787,7 +788,15 @@ async def create_rank_card(
     panel_w = CARD_WIDTH - 2 * AVATAR_PADDING
     panel_h = CARD_HEIGHT - 2 * AVATAR_PADDING
     if cfg["elements"]["panel"]["enabled"]:
-        _draw_rounded_rect(draw, (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h), 16, PANEL_COLOR)
+        panel_spec = cfg["panel_color"]
+        if panel_spec[0] == "gradient":
+            pmask = Image.new("L", (panel_w, panel_h), 0)
+            ImageDraw.Draw(pmask).rounded_rectangle((0, 0, panel_w, panel_h), radius=16, fill=255)
+            pfill = _gradient_image(panel_w, panel_h, panel_spec[1]["direction"], panel_spec[1]["colors"])
+            img.paste(pfill, (panel_x, panel_y), pmask)
+            draw = ImageDraw.Draw(img)
+        else:
+            _draw_rounded_rect(draw, (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h), 16, panel_spec[1])
 
     avatar_img = None
     try:

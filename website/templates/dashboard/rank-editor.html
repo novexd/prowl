@@ -209,11 +209,11 @@
   .re-field-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
   .re-seg { display: inline-flex; gap: 2px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px; flex-shrink: 0; }
   .re-seg button { border: 0; background: transparent; color: rgba(255,255,255,0.55); font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 3px; cursor: pointer; font-family: inherit; }
-  .re-seg button.on { background: rgba(139,92,246,0.4); color: #fff; }
+  .re-seg button.on { background: rgba(255,255,255,0.92); color: #111; }
 
   /* Alpha slider + stop rows */
   .re-alpha { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 0; }
-  .re-alpha input[type="range"] { flex: 1; min-width: 0; accent-color: #8b5cf6; }
+  .re-alpha input[type="range"] { flex: 1; min-width: 0; accent-color: #e9edf5; }
   .re-alpha span { font-size: 0.68rem; color: rgba(255,255,255,0.5); min-width: 36px; text-align: right; }
   .re-stop { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
   .re-stop-remove { border: 1px solid rgba(255,255,255,0.14); background: transparent; color: rgba(255,255,255,0.5); border-radius: 4px; width: 26px; height: 26px; cursor: pointer; flex-shrink: 0; font-size: 0.8rem; line-height: 1; }
@@ -223,13 +223,38 @@
   .re-add-stop:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
   .re-add-stop:disabled { opacity: 0.3; cursor: default; }
   .re-dir { margin-bottom: 0.4rem; }
-  .re-el-color { max-width: 92px; margin-left: auto; flex-shrink: 0; }
+  /* Dashboard-styled native selects, sized to fit the narrow side columns */
+  .re-fs select.md-select { min-width: 0; }
+  #re-bg-mode { flex: 1; min-width: 0; }
+  .re-dir select.md-select { width: 100%; }
+  .re-el-color { width: auto !important; max-width: 88px; flex-shrink: 0; padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; font-size: 0.72rem !important; }
+  /* Keep element rows inside the 300px column: shrinkable ellipsis label */
+  #re-element-list .md-behavior-item { gap: 0.5rem; padding: 0.5rem; }
+  #re-element-list .md-behavior-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #re-element-list .md-behavior-item > div { min-width: 0; }
+  /* Dashboard tooltip look (dashboard.js is not loaded on this page; the
+     behavior is replicated in rank_editor.js) */
+  #prowl-tooltip {
+    position: fixed;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Lexend', system-ui, sans-serif;
+    color: #ccc;
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 99999;
+  }
+  .re-stop-remove svg { width: 13px; height: 13px; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="re-fs">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;flex-shrink:0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.75rem;flex-shrink:0;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Rank Card Editor</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Customize your personal rank card. Changes save to your account.</p>
@@ -246,7 +271,7 @@
         <div class="md-section-title">Background</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
           <button class="md-action-btn" id="re-bg-random"><i data-lucide="shuffle"></i> Random</button>
-          <select class="md-input" id="re-bg-mode" style="flex:1;min-width:0;">
+          <select class="md-select" id="re-bg-mode" style="flex:1;min-width:0;">
             <option value="image">Image</option>
             <option value="solid">Solid</option>
             <option value="gradient">Gradient</option>
@@ -281,6 +306,7 @@
         <div class="md-section-title">Colors</div>
         <div class="re-color-row" id="re-color-primary-wrap"></div>
         <div class="re-color-row" id="re-color-accent-wrap"></div>
+        <div class="re-color-row" id="re-color-panel-wrap"></div>
       </div>
 
       <div class="re-box">
@@ -295,5 +321,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.js"></script>
-<script defer src="/static/rank_editor.js?v=11"></script>
+<script defer src="/static/rank_editor.js?v=12"></script>
 {% endblock %}

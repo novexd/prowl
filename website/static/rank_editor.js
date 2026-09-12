@@ -8,6 +8,7 @@
     background: "random",
     primary_color: [255, 255, 255],
     accent_color: [255, 255, 255],
+    panel_color: [10, 10, 16, 170],
     elements: {
       panel: { enabled: true },
       avatar: { enabled: true, x: null, y: null, size: null },
@@ -124,7 +125,7 @@
       wrap.innerHTML =
         `<input type="color" class="re-swatch" value="${rgbToHex(c)}" />` +
         `<input type="text" class="md-input" value="${rgbToHex(c)}" style="max-width:90px;" />` +
-        `<div class="re-alpha" title="Transparency"><input type="range" min="0" max="100" value="${pct}" /><span>${pct}%</span></div>`;
+        `<div class="re-alpha" data-tooltip="Transparency"><input type="range" min="0" max="100" value="${pct}" /><span>${pct}%</span></div>`;
       const [sw, hex, rangeWrap] = [wrap.children[0], wrap.children[1], wrap.children[2]];
       const range = rangeWrap.querySelector("input"), label = rangeWrap.querySelector("span");
       const apply = (rgb, a) => {
@@ -152,7 +153,7 @@
         `<input type="color" class="re-swatch" value="${rgbToHex(c)}" />` +
         `<input type="text" class="md-input" value="${rgbToHex(c)}" style="max-width:82px;" />` +
         `<div class="re-alpha" title="Transparency"><input type="range" min="0" max="100" value="${pct}" /><span>${pct}%</span></div>` +
-        `<button type="button" class="re-stop-remove" title="Remove color" ${grad.colors.length <= 2 ? "disabled" : ""}>\u00d7</button>`;
+        `<button type="button" class="re-stop-remove" data-tooltip="Remove color" ${grad.colors.length <= 2 ? "disabled" : ""}><i data-lucide="x"></i></button>`;
       const [sw, hex, rangeWrap, rm] = [row.children[0], row.children[1], row.children[2], row.children[3]];
       const range = rangeWrap.querySelector("input"), label = rangeWrap.querySelector("span");
       const commit = (rgb, a) => {
@@ -183,8 +184,7 @@
     function gradientBody(grad) {
       const body = document.createElement("div");
       const dirSel = document.createElement("select");
-      dirSel.className = "md-input re-dir";
-      dirSel.style.width = "100%";
+      dirSel.className = "md-select re-dir";
       GRADIENT_DIRS.forEach(([val, label]) => {
         const o = document.createElement("option");
         o.value = val;
@@ -273,10 +273,50 @@
           });
         }
       }
+      if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
     refresh();
     return { refresh };
+  }
+
+  /* Dashboard tooltip replica (dashboard.js is not loaded on this page):
+   * floating #prowl-tooltip for [data-tooltip], 400ms delay. */
+  function initTooltips() {
+    if (document.getElementById("prowl-tooltip")) return;
+    const el = document.createElement("div");
+    el.id = "prowl-tooltip";
+    el.style.display = "none";
+    document.body.appendChild(el);
+    let timer;
+    document.addEventListener("mouseover", (e) => {
+      const target = (e.target && e.target.closest) ? e.target.closest("[data-tooltip]") : null;
+      if (!target) { el.style.display = "none"; return; }
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        el.textContent = target.getAttribute("data-tooltip");
+        el.style.display = "block";
+        position(e);
+      }, 400);
+    });
+    document.addEventListener("mouseout", (e) => {
+      if (e.target && e.target.closest && e.target.closest("[data-tooltip]")) {
+        clearTimeout(timer);
+        el.style.display = "none";
+      }
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (el.style.display === "block") position(e);
+    });
+    function position(e) {
+      const mx = e.clientX, my = e.clientY;
+      let x = mx + 12, y = my + 12;
+      const w = el.offsetWidth, h = el.offsetHeight;
+      if (x + w > window.innerWidth) x = mx - w - 8;
+      if (y + h > window.innerHeight) y = my - h - 8;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+    }
   }
 
   function isDark(hex) {
@@ -389,8 +429,8 @@
       item.appendChild(textWrap);
       if (COLOR_ELEMENTS.includes(key)) {
         const sel = document.createElement("select");
-        sel.className = "md-input re-el-color";
-        sel.title = "Color source";
+        sel.className = "md-select re-el-color";
+        sel.setAttribute("data-tooltip", "Color source");
         [["primary", "Primary"], ["accent", "Accent"]].forEach(([val, textContent]) => {
           const o = document.createElement("option");
           o.value = val;
@@ -671,6 +711,7 @@
         background: bg,
         primary_color: slot(saved.primary_color, DEFAULTS.primary_color),
         accent_color: slot(saved.accent_color, DEFAULTS.accent_color),
+        panel_color: slot(saved.panel_color, DEFAULTS.panel_color),
         elements: {},
       };
       for (const name in DEFAULTS.elements) {
@@ -709,6 +750,11 @@
       label: "Accent",
       get: () => state.config.accent_color,
       set: (v) => { state.config.accent_color = v; },
+    }));
+    colorSlots.push(colorField($("re-color-panel-wrap"), {
+      label: "Panel",
+      get: () => state.config.panel_color,
+      set: (v) => { state.config.panel_color = v; },
     }));
     colorSlots.push(colorField($("re-bg-solidwrap"), {
       label: "Background color",
@@ -778,6 +824,7 @@
   async function init() {
     try {
       initScrollbar();
+      initTooltips();
       measureRankText();
       await loadSettings();
       refreshColorUI();

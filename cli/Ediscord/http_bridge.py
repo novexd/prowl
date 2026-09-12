@@ -235,18 +235,19 @@ def _sanitize_preview_config(raw_cfg, manifest_ids: set) -> dict:
     else:
         raise ValueError("invalid background")
 
-    def _clean_slot(v, what):
+    def _clean_slot(v, what, dflt=(255, 255, 255, 255)):
         if isinstance(v, dict):
             g = _sanitize_gradient(v)
             if g is None:
                 raise ValueError(f"invalid {what} gradient")
             return {"direction": g["direction"], "colors": [list(c) for c in g["colors"]]}
-        return _sanitize_rgba_list(v, (255, 255, 255, 255))
+        return _sanitize_rgba_list(v, dflt)
 
     clean = {
         "background": clean_bg,
         "primary_color": _clean_slot(raw_cfg.get("primary_color"), "primary"),
         "accent_color": _clean_slot(raw_cfg.get("accent_color"), "accent"),
+        "panel_color": _clean_slot(raw_cfg.get("panel_color"), "panel", (10, 10, 16, 170)),
         "elements": {},
     }
     raw_elements = raw_cfg.get("elements") or {}
