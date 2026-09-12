@@ -428,7 +428,7 @@ async def create_rank_card(
     text_x = avatar_x + avatar_size + 24
     text_y = avatar_y + 12
     display_name = str(getattr(user, "display_name", "") or str(user))
-    level_suffix = f"● {level}"
+    level_suffix = f"- {level}"
     level_width = draw.textlength(level_suffix, font=name_font)
 
     name_elems = cfg["elements"]["name"]
