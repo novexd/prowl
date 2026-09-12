@@ -60,11 +60,9 @@
   #re-stage {
     position: relative;
     width: 100%;
-    /* Fill the available space in both axes (3:1 aspect), capped before upscale blur */
-    max-width: min(1200px, max(320px, calc((100vh - 300px) * 3)));
-    margin: auto;
+    /* Flush full-width canvas, capped before upscale blur */
+    max-width: 1200px;
   }
-  .re-center > .re-box { width: 100%; margin: auto; }
   #re-stage img#re-preview {
     display: block;
     width: 100%;
@@ -188,34 +186,17 @@
         </div>
         <div class="md-behavior-desc" id="bg-status"></div>
       </div>
-
-      <div class="re-box">
-        <div class="md-section-title">Elements</div>
-        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
-        <div class="md-behavior-list" id="re-element-list">
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
-        </div>
-      </div>
     </div>
 
     <div class="re-center">
-      <div class="re-box">
-        <div class="md-section-title">Canvas</div>
-        <div id="re-stage">
-          <img id="re-preview" alt="Rank card preview" style="display:none;" />
-          <div id="re-canvas-ph">
-            <i data-lucide="image"></i>
-            <span>Rendering preview…</span>
-          </div>
+      <div id="re-stage">
+        <img id="re-preview" alt="Rank card preview" style="display:none;" />
+        <div id="re-canvas-ph">
+          <i data-lucide="image"></i>
+          <span>Rendering preview…</span>
         </div>
-        <div class="md-behavior-desc" id="re-preview-status" style="margin-top:0.5rem;"></div>
       </div>
+      <div class="md-behavior-desc" id="re-preview-status" style="margin-top:0.5rem;"></div>
     </div>
 
     <div class="re-side">
@@ -236,6 +217,20 @@
             <input type="text" class="md-input" id="re-accent-hex" value="#ffffff" style="max-width:90px;" />
           </div>
           <div class="md-presets" id="re-accent-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
+        </div>
+      </div>
+
+      <div class="re-box">
+        <div class="md-section-title">Elements</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
+        <div class="md-behavior-list" id="re-element-list">
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
         </div>
       </div>
     </div>
