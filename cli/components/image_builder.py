@@ -566,10 +566,18 @@ async def create_rank_card(
         _draw_rounded_rect(draw, (panel_x, panel_y, panel_x + panel_w, panel_y + panel_h), 16, PANEL_COLOR)
 
     avatar_img = None
-    if isinstance(user, (discord.Member, discord.User)):
-        avatar_img = await _fetch_avatar(user.display_avatar, AVATAR_SIZE)
+    try:
+        asset = getattr(user, "display_avatar", None)
+        if asset is not None and hasattr(asset, "read"):
+            avatar_img = await _fetch_avatar(asset, AVATAR_SIZE)
+    except Exception as e:
+        logger.warning(f"Failed to fetch avatar: {e}")
     if avatar_img is None:
-        avatar_img = _get_default_avatar(user.id)
+        try:
+            uid = int(getattr(user, "id", 0))
+        except (TypeError, ValueError):
+            uid = 0
+        avatar_img = _get_default_avatar(uid)
 
     mask = _create_avatar_mask(AVATAR_SIZE)
 

@@ -37,8 +37,48 @@
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
-  .re-main { display: grid; grid-template-columns: 1fr 360px; gap: 1rem; align-items: start; }
-  @media (max-width: 880px) { .re-main { grid-template-columns: 1fr; } }
+  /* Fullscreen editor: header + 3-column workspace filling the viewport */
+  .re-fs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .re-fs-main {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 300px;
+    gap: 1rem;
+    flex: 1;
+    min-height: 0;
+  }
+  .re-side { overflow-y: auto; min-height: 0; padding-right: 0.25rem; }
+  .re-side::-webkit-scrollbar { width: 4px; }
+  .re-side::-webkit-scrollbar-track { background: transparent; }
+  .re-side::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+  .re-center {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  #re-stage {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: auto;
+  }
+  #re-stage img#re-preview {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+  @media (max-width: 1100px) {
+    .re-fs-main { grid-template-columns: 260px minmax(0, 1fr) 260px; }
+  }
+  @media (max-width: 880px) {
+    html, body { height: auto; overflow: auto; }
+    #app-shell { height: auto; max-height: none; }
+    .re-fs { height: auto; }
+    .re-fs-main { grid-template-columns: 1fr; overflow: visible; }
+    .re-side { overflow: visible; }
+    .re-center { overflow: visible; }
+  }
 
   .re-box {
     border: 1px solid rgba(255,255,255,0.08);
@@ -48,8 +88,8 @@
   }
   .re-box + .re-box { margin-top: 1rem; }
 
-  /* Canvas placeholder (real editor comes later) */
-  #re-canvas {
+  /* Canvas placeholder (shown until the first live render lands) */
+  #re-canvas-ph {
     aspect-ratio: 3 / 1;
     width: 100%;
     border: 1px dashed rgba(255,255,255,0.12);
@@ -64,7 +104,7 @@
     font-size: 0.8rem;
     font-weight: 600;
   }
-  #re-canvas svg { width: 22px; height: 22px; color: rgba(255,255,255,0.2); }
+  #re-canvas-ph svg { width: 22px; height: 22px; color: rgba(255,255,255,0.2); }
 
   /* Background gallery */
   .re-gallery {
@@ -119,9 +159,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<div style="padding:2rem 0;">
+<div class="re-fs">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;flex-shrink:0;">
     <div>
       <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.03em;line-height:1.05;">Rank Card Editor</h1>
       <p style="color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;margin-top:4px;">Customize your personal rank card. Changes save to your account.</p>
@@ -132,17 +172,8 @@
     </div>
   </div>
 
-  <div class="re-main">
-    <div class="re-box">
-      <div class="md-section-title">Canvas</div>
-      <div id="re-canvas">
-        <i data-lucide="image"></i>
-        <span>Canvas editor coming soon</span>
-      </div>
-      <div class="md-behavior-desc">Preview and drag-to-position arrive in the next step. Everything below already saves.</div>
-    </div>
-
-    <div>
+  <div class="re-fs-main">
+    <div class="re-side">
       <div class="re-box">
         <div class="md-section-title">Background</div>
         <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem;">
@@ -155,6 +186,36 @@
         <div class="md-behavior-desc" id="bg-status"></div>
       </div>
 
+      <div class="re-box">
+        <div class="md-section-title">Elements</div>
+        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
+        <div class="md-behavior-list" id="re-element-list">
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
+          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="re-center">
+      <div class="re-box">
+        <div class="md-section-title">Canvas</div>
+        <div id="re-stage">
+          <img id="re-preview" alt="Rank card preview" style="display:none;" />
+          <div id="re-canvas-ph">
+            <i data-lucide="image"></i>
+            <span>Rendering preview…</span>
+          </div>
+        </div>
+        <div class="md-behavior-desc" id="re-preview-status" style="margin-top:0.5rem;"></div>
+      </div>
+    </div>
+
+    <div class="re-side">
       <div class="re-box">
         <div class="md-section-title">Colors</div>
         <div class="re-color-row">
@@ -174,20 +235,6 @@
           <div class="md-presets" id="re-accent-presets" style="margin:0.4rem 0 0 0;flex-wrap:wrap;"></div>
         </div>
       </div>
-
-      <div class="re-box">
-        <div class="md-section-title">Elements</div>
-        <div class="md-behavior-desc" style="margin-bottom:0.5rem;">Toggle which parts of the card render.</div>
-        <div class="md-behavior-list" id="re-element-list">
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="panel" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Dark panel</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="avatar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Avatar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="name" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Name &amp; Level</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_value" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP value</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="rank" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">Rank</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_bar" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP bar</div></div></div>
-          <div class="md-behavior-item"><label class="md-toggle"><input type="checkbox" data-el="xp_ratio" checked /><span class="md-toggle-slider"></span></label><div><div class="md-behavior-label">XP ratio text</div></div></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -195,5 +242,5 @@
 {% endblock %}
 {% block scripts %}
 <script defer src="https://cdn.jsdelivr.net/npm/simplebar@6/dist/simplebar.min.js"></script>
-<script defer src="/static/rank_editor.js?v=8"></script>
+<script defer src="/static/rank_editor.js?v=9"></script>
 {% endblock %}

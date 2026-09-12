@@ -10,6 +10,8 @@ Endpoints:
   GET  /health            -> {"ok": true, "bot": ..., "guilds": N}
   POST /api/action        -> execute a moderation quick-action immediately
   GET  /api/stats/actions -> last 24h hourly dashboard-action counts (in-memory)
+  POST /api/rank_preview  -> render a rank card PNG with the real image_builder
+                           (website rank-editor preview; strictly validated)
 
 Set BOT_HTTP_TOKEN in cli/.env and the website env. Port defaults to 24612
 (BOT_HTTP_PORT). The website must be able to reach http://<host>:<port>.
@@ -128,6 +130,135 @@ async def handle_action_stats(request):
     if not await _check_auth(request):
         return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
     return web.json_response({"actions": action_stats()})
+
+
+# ── Rank card live preview ──────────────────────────────────────────────
+# Renders with the real image_builder so website previews are pixel-identical
+# to final cards. Pure render: needs no gateway connection, only the process.
+PREVIEW_ELEMENTS = ("panel", "avatar", "name", "xp_value", "rank", "xp_bar", "xp_ratio")
+PREVIEW_AVATAR_MAX_BYTES = 8 * 1024 * 1024
+PREVIEW_POS_BOUNDS = {
+    "x": (0, 900), "y": (0, 300), "size": (16, 512),
+    "width": (50, 900), "height": (4, 100),
+}
+
+
+class _PreviewAvatar:
+    """discord.Asset stand-in backed by a Discord CDN URL."""
+
+    def __init__(self, url: str):
+        self._url = url
+
+    async def read(self) -> bytes:
+        import aiohttp
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(self._url, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                if resp.status != 200:
+                    raise ValueError(f"avatar fetch failed: {resp.status}")
+                data = await resp.read()
+        if len(data) > PREVIEW_AVATAR_MAX_BYTES:
+            raise ValueError("avatar too large")
+        return data
+
+
+class _PreviewUser:
+    """Minimal duck-typed stand-in for discord.Member/User (preview only)."""
+
+    def __init__(self, user_id: int, display_name: str, avatar_url: str):
+        self.id = user_id
+        self.display_name = display_name
+        self.display_avatar = _PreviewAvatar(avatar_url)
+
+
+def _clamp_int(v, lo: int, hi: int, default: int) -> int:
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, n))
+
+
+def _sanitize_preview_config(raw_cfg, manifest_ids: set) -> dict:
+    """Strictly validate an editor-supplied rank_card config.
+
+    Backgrounds are restricted to manifest ids / "random" / null or legacy
+    local filenames (containment-checked at open time). Raw http(s) URLs are
+    rejected here (SSRF) even though the renderer itself can fetch them."""
+    from components.image_builder import _open_background_name, _to_rgba, WHITE, RANKS_DEFAULT_CONFIG
+    if not isinstance(raw_cfg, dict):
+        raise ValueError("config must be an object")
+    bg = raw_cfg.get("background", "random")
+    if bg is None or bg == "random":
+        clean_bg = bg
+    elif isinstance(bg, str) and (bg in manifest_ids or _open_background_name(bg) is not None):
+        clean_bg = bg
+    else:
+        raise ValueError("invalid background")
+    clean = {
+        "background": clean_bg,
+        "primary_color": list(_to_rgba(raw_cfg.get("primary_color"), WHITE)[:3]),
+        "accent_color": list(_to_rgba(raw_cfg.get("accent_color"), WHITE)[:3]),
+        "elements": {},
+    }
+    raw_elements = raw_cfg.get("elements") or {}
+    if not isinstance(raw_elements, dict):
+        raw_elements = {}
+    for name in RANKS_DEFAULT_CONFIG["elements"]:
+        raw_el = raw_elements.get(name) or {}
+        if not isinstance(raw_el, dict):
+            raw_el = {}
+        el = {"enabled": bool(raw_el.get("enabled", True))}
+        for field, (lo, hi) in PREVIEW_POS_BOUNDS.items():
+            if field in raw_el and raw_el[field] is not None:
+                el[field] = _clamp_int(raw_el[field], lo, hi, None)
+                if el[field] is None:
+                    del el[field]
+        clean["elements"][name] = el
+    return clean
+
+
+async def handle_rank_preview(request):
+    if not await _check_auth(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+    if not isinstance(body, dict):
+        return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+    try:
+        from components.image_builder import create_rank_card, _load_manifest_entries
+        entries = await _load_manifest_entries()
+        clean = _sanitize_preview_config(body.get("config"), {e["id"] for e in entries})
+        pv = body.get("preview") or {}
+        if not isinstance(pv, dict):
+            pv = {}
+        try:
+            uid = int(pv.get("user_id") or 0)
+        except (TypeError, ValueError):
+            uid = 0
+        name = str(pv.get("display_name") or "User")[:32]
+        avatar_url = str(pv.get("avatar_url") or "")
+        if not avatar_url.startswith("https://cdn.discordapp.com/"):
+            avatar_url = ""
+        user = _PreviewUser(uid, name, avatar_url)
+        buf = await create_rank_card(
+            user,
+            _clamp_int(pv.get("level"), 1, 9999, 12),
+            _clamp_int(pv.get("xp"), 0, 10 ** 12, 2470),
+            _clamp_int(pv.get("xp_needed"), 0, 10 ** 12, 150),
+            _clamp_int(pv.get("rank"), 1, 10 ** 9, 3),
+            _clamp_int(pv.get("total_members"), 1, 10 ** 9, 284),
+            guild_name="Preview",
+            config=clean,
+        )
+        return web.Response(body=buf.getvalue(), content_type="image/png")
+    except ValueError as e:
+        return web.json_response({"ok": False, "error": str(e) or "invalid config"}, status=400)
+    except Exception as e:
+        logger.warning(f"Rank preview render failed: {e}")
+        return web.json_response({"ok": False, "error": "render failed"}, status=500)
 
 
 # ── Per-guild bot profile (nickname / avatar / banner) ──
@@ -357,6 +488,7 @@ async def start_http_server():
     app.router.add_post("/semantic-search", handle_semantic_search)
     app.router.add_post("/api/gc/deploy_panel", handle_gc_deploy_panel)
     app.router.add_post("/api/gc/remove_panel", handle_gc_remove_panel)
+    app.router.add_post("/api/rank_preview", handle_rank_preview)
     port = int(os.environ.get("BOT_HTTP_PORT", "24612"))
     runner = web.AppRunner(app)
     await runner.setup()

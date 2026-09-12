@@ -27,6 +27,7 @@
   };
 
   let bgList = [];
+  let renderTimer = null, renderSeq = 0, previewURL = null;
 
   const $ = (id) => document.getElementById(id);
   const api = (path, opts) => {
@@ -98,6 +99,42 @@
     if (!btn) return;
     btn.style.boxShadow = dirty ? "0 0 14px rgba(255,255,255,0.35)" : "";
     btn.style.borderColor = dirty ? "rgba(255,255,255,0.35)" : "";
+    if (dirty) scheduleRender();
+  }
+
+  function scheduleRender() {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderPreview, 450);
+  }
+
+  async function renderPreview() {
+    const img = $("re-preview"), ph = $("re-canvas-ph"), st = $("re-preview-status");
+    const my = ++renderSeq;
+    if (st) st.textContent = "Rendering preview…";
+    try {
+      const res = await fetch("/api/v1/user/rank-preview/render", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: state.config }),
+      });
+      if (!res.ok) {
+        let msg = `Preview failed (HTTP ${res.status}).`;
+        try { const d = await res.json(); if (d && d.error) msg = d.error; } catch (e) {}
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      if (my !== renderSeq) return;
+      const url = URL.createObjectURL(blob);
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      previewURL = url;
+      if (img) { img.src = url; img.style.display = "block"; }
+      if (ph) ph.style.display = "none";
+      if (st) st.textContent = "";
+    } catch (err) {
+      if (my !== renderSeq) return;
+      if (ph) ph.style.display = "";
+      if (st) st.textContent = String((err && err.message) || err);
+    }
   }
 
   function refreshColorUI() {
@@ -281,6 +318,7 @@
       if (g) g.innerHTML = '<div class="re-gallery-empty">Could not load backgrounds.</div>';
       setBgStatus(`Could not load backgrounds: ${e.message || e}`);
     }
+    scheduleRender();
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 

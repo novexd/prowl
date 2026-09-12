@@ -17,7 +17,7 @@ load_dotenv(Path(__file__).parent.parent / ".env.local")
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from api import session as rotating_session
@@ -3682,6 +3682,53 @@ async def user_background_file(request: Request, filename: str):
 async def user_rank_preview(request: Request):
     user = await require_auth(request)
     return {"avatar_url": _avatar_url(user), "display_name": user.get("global_name") or user.get("username") or "User"}
+
+
+# Sample stats for editor previews. The editor page is user-scoped (no guild),
+# so real XP/rank are unavailable; identity (avatar + name) is always real.
+PREVIEW_SAMPLE = {
+    "level": 12, "xp": 2470, "xp_needed": 150, "rank": 3, "total_members": 284,
+}
+
+
+@app.post("/api/v1/user/rank-preview/render")
+async def user_rank_preview_render(request: Request):
+    """Render the editor's current (possibly unsaved) config with the bot's
+    real image_builder and stream the PNG back. Bot owns validation; the
+    bridge token never leaves the server. Bot offline -> 503."""
+    user = await require_auth(request)
+    if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
+        return JSONResponse({"error": "bot bridge not configured"}, status_code=503)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    config = body.get("config") if isinstance(body, dict) else None
+    payload = {
+        "config": config if isinstance(config, dict) else {},
+        "preview": {
+            "user_id": str(user.get("id") or "0"),
+            "display_name": user.get("global_name") or user.get("username") or "User",
+            "avatar_url": _avatar_url(user),
+            **PREVIEW_SAMPLE,
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                BOT_SERVER_URL.rstrip("/") + "/api/rank_preview",
+                json=payload,
+                headers={"X-Prowl-Token": BOT_HTTP_TOKEN},
+            )
+    except Exception as e:
+        return JSONResponse({"error": f"bot unreachable: {e}"}, status_code=503)
+    if r.status_code != 200:
+        try:
+            detail = r.json().get("error") or r.json().get("message")
+        except Exception:
+            detail = None
+        return JSONResponse({"error": detail or f"bot responded {r.status_code}"}, status_code=502)
+    return Response(content=r.content, media_type="image/png")
 
 
 @app.get("/rank-editor")
