@@ -142,10 +142,13 @@
       // Full-res files (6K+) load through a resize proxy for thumbs;
       // falls back to the raw URL if the proxy ever fails.
       let src = raw;
-      if (/^https?:\/\//i.test(raw)) {
-        const hostpath = raw.replace(/^https?:\/\//i, "");
-        src = `https://images.weserv.nl/?url=${hostpath}&w=320&q=70&output=jpg`;
-      }
+      try {
+        const u = new URL(raw, location.href);
+        if (/^https?:$/.test(u.protocol) && u.origin !== location.origin) {
+          const hostpath = `${u.host}${u.pathname}${u.search}`;
+          src = `https://images.weserv.nl/?url=${hostpath}&w=320&q=70&output=jpg`;
+        }
+      } catch (e) { /* keep raw */ }
       const safe = String(id).replace(/"/g, "");
       return `<img class="bg-thumb" src="${src}" data-name="${safe}" alt="${safe}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${raw}';" />`;
     }).join("");

@@ -23,5 +23,7 @@ nerimity.js/
 .ven/
 AGENTS.md
 .gitignore
-# Rank card background drop folder — never commit bulk images (see website/static/backgrounds.json manifest instead)
-website/static/bg/
+# Rank card backgrounds: only generated gradients are committed.
+# Never drop bulk/external images in here (use manifest URLs instead).
+website/static/bg/*
+!website/static/bg/grad-*.jpg
