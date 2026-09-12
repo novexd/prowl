@@ -46,11 +46,21 @@
     return "#" + to(c[0]) + to(c[1]) + to(c[2]);
   }
 
+  function setVal(id, v) {
+    const el = $(id);
+    if (el) el.value = v;
+  }
+
+  function on(id, ev, fn) {
+    const el = $(id);
+    if (el) el.addEventListener(ev, fn);
+  }
+
   function updateColorInputs() {
-    $("re-color-primary").value = rgbToHex(state.config.primary_color);
-    $("re-primary-hex").value = rgbToHex(state.config.primary_color);
-    $("re-color-accent").value = rgbToHex(state.config.accent_color);
-    $("re-accent-hex").value = rgbToHex(state.config.accent_color);
+    setVal("re-color-primary", rgbToHex(state.config.primary_color));
+    setVal("re-primary-hex", rgbToHex(state.config.primary_color));
+    setVal("re-color-accent", rgbToHex(state.config.accent_color));
+    setVal("re-accent-hex", rgbToHex(state.config.accent_color));
   }
 
   function syncColorPair(colorId, hexId, apply) {
@@ -159,13 +169,13 @@
   }
 
   function bindStatic() {
-    $("re-bg-random").addEventListener("click", () => {
+    on("re-bg-random", "click", () => {
       state.config.background = "random";
       markBgSelected(null);
       setDirty(true);
     });
 
-    $("re-bg-solid").addEventListener("click", () => {
+    on("re-bg-solid", "click", () => {
       state.config.background = null;
       markBgSelected("solid");
       setDirty(true);
@@ -178,7 +188,7 @@
     renderPresets("re-primary-presets", setPrimary);
     renderPresets("re-accent-presets", setAccent);
 
-    $("re-save").addEventListener("click", async () => {
+    on("re-save", "click", async () => {
       const btn = $("re-save");
       const original = btn.innerHTML;
       btn.disabled = true;
@@ -203,7 +213,7 @@
       }
     });
 
-    $("re-reset").addEventListener("click", () => {
+    on("re-reset", "click", () => {
       if (!confirm("Reset your rank card to defaults? This can't be undone.")) return;
       state.config = JSON.parse(JSON.stringify(DEFAULTS));
       bindToggles();
@@ -225,12 +235,22 @@
   }
 
   async function init() {
-    initScrollbar();
-    await loadSettings();
-    refreshColorUI();
-    bindToggles();
-    bindStatic();
-    await loadBackgrounds();
+    try {
+      initScrollbar();
+      await loadSettings();
+      refreshColorUI();
+      bindToggles();
+      bindStatic();
+    } catch (e) {
+      if (typeof console !== "undefined") console.error("rank-editor init failed:", e);
+    }
+    try {
+      await loadBackgrounds();
+    } catch (e) {
+      if (typeof console !== "undefined") console.error("rank-editor backgrounds failed:", e);
+      const g = $("bg-gallery");
+      if (g) g.innerHTML = '<div class="re-gallery-empty">Could not load backgrounds.</div>';
+    }
     if (typeof lucide !== "undefined") lucide.createIcons();
   }
 

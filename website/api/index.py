@@ -3539,8 +3539,20 @@ def _background_manifest():
     disk-caches at render time. Returns [] on any failure.
     """
     try:
-        repo_root = Path(__file__).resolve().parents[1]
-        mf = repo_root / "website" / "static" / "backgrounds.json"
+        here = Path(__file__).resolve()
+        mf = None
+        for cand in (
+            here.parents[1] / "static" / "backgrounds.json",
+            here.parents[2] / "website" / "static" / "backgrounds.json",
+        ):
+            try:
+                if cand.is_file():
+                    mf = cand
+                    break
+            except OSError:
+                continue
+        if mf is None:
+            return []
         raw = json.loads(mf.read_text(encoding="utf-8"))
         items = raw.get("backgrounds") if isinstance(raw, dict) else None
         if not isinstance(items, list):
