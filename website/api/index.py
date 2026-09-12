@@ -251,7 +251,7 @@ CSP = (
     "https://challenges.cloudflare.com; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
     "font-src 'self' https://fonts.gstatic.com data:; "
-    "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone; "
+    "img-src 'self' blob: data: https://cdn.discordapp.com https://img.itch.zone; "
     "connect-src 'self' https://api.prowlbot.xyz https://discord.com "
     "https://www.google.com https://www.gstatic.com https://challenges.cloudflare.com "
     "https://unpkg.com https://cdn.jsdelivr.net https://app.grapesjs.com; "
@@ -287,7 +287,7 @@ def _csp_header():
         _csp_extra["img_hosts"] = sorted(hosts)
         _csp_extra["at"] = now
     extra = " ".join(_csp_extra["img_hosts"])
-    base_img = "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone https://images.weserv.nl"
+    base_img = "img-src 'self' blob: data: https://cdn.discordapp.com https://img.itch.zone https://images.weserv.nl"
     if extra:
         return CSP.replace(base_img, base_img + " " + extra)
     return CSP
@@ -3695,7 +3695,7 @@ PREVIEW_SAMPLE = {
 
 
 def _bridge_client():
-    return httpx.AsyncClient(timeout=15)
+    return httpx.AsyncClient(timeout=10)
 
 
 @app.post("/api/v1/user/rank-preview/render")
@@ -3704,7 +3704,10 @@ async def user_rank_preview_render(request: Request):
     rendering and return {job_id} immediately. Every hop stays fast so no
     serverless timeout can trigger; the browser polls /result/ below. Bot
     owns validation; the bridge token never leaves the server."""
-    user = await require_auth(request)
+    try:
+        user = await require_auth(request)
+    except Exception:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
         return JSONResponse({"error": "bot bridge not configured"}, status_code=503)
     try:
@@ -3722,7 +3725,7 @@ async def user_rank_preview_render(request: Request):
         },
     }
     try:
-        async with _bridge_client() as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
                 BOT_SERVER_URL.rstrip("/") + "/api/rank_preview",
                 json=payload,
@@ -3748,13 +3751,16 @@ async def user_rank_preview_render(request: Request):
 @app.get("/api/v1/user/rank-preview/result/{job_id}")
 async def user_rank_preview_result(job_id: str, request: Request):
     """Poll a preview render. Pending -> {ready: False}; done -> PNG bytes."""
-    await require_auth(request)
+    try:
+        await require_auth(request)
+    except Exception:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", job_id or ""):
         return JSONResponse({"error": "invalid job_id"}, status_code=400)
     if not BOT_SERVER_URL or not BOT_HTTP_TOKEN:
         return JSONResponse({"error": "bot bridge not configured"}, status_code=503)
     try:
-        async with _bridge_client() as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(
                 BOT_SERVER_URL.rstrip("/") + f"/api/rank_preview/{job_id}",
                 headers={"X-Prowl-Token": BOT_HTTP_TOKEN},

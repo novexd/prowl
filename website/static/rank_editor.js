@@ -491,6 +491,12 @@
           document.querySelectorAll(".re-chip").forEach(c => c.classList.remove("is-selected"));
         }
       });
+      const pimg = $("re-preview");
+      if (pimg) pimg.addEventListener("error", () => {
+        const ph = $("re-canvas-ph"), st = $("re-preview-status");
+        if (ph) ph.style.display = "";
+        if (st) st.textContent = "Image was blocked from rendering.";
+      });
     } catch (e) {
       if (typeof console !== "undefined") console.error("rank-editor init failed:", e);
     }
