@@ -3530,6 +3530,34 @@ def _background_path(filename: str):
     return safe
 
 
+def _background_manifest():
+    """Load the tracked backgrounds manifest (id -> image URL).
+
+    The manifest lives at website/static/backgrounds.json so it ships with
+    the repo and deploys to the edge. Bulk image bytes are NEVER committed;
+    entries point at externally hosted URLs which the bot downloads and
+    disk-caches at render time. Returns [] on any failure.
+    """
+    try:
+        repo_root = Path(__file__).resolve().parents[1]
+        mf = repo_root / "website" / "static" / "backgrounds.json"
+        raw = json.loads(mf.read_text(encoding="utf-8"))
+        items = raw.get("backgrounds") if isinstance(raw, dict) else None
+        if not isinstance(items, list):
+            return []
+        out = []
+        for it in items:
+            if isinstance(it, dict) and it.get("id") and it.get("url"):
+                out.append({
+                    "id": str(it["id"]),
+                    "url": str(it["url"]),
+                    "thumb": str(it.get("thumb") or it["url"]),
+                })
+        return out
+    except Exception:
+        return []
+
+
 def _avatar_url(user: dict) -> str:
     avatar = user.get("avatar_url") or user.get("avatar")
     if avatar:
@@ -3580,14 +3608,20 @@ async def user_rank_card_set(request: Request):
 @app.get("/api/v1/user/backgrounds")
 async def user_backgrounds(request: Request):
     await require_auth(request)
-    bg_dir = _background_dir()
-    if bg_dir is None:
-        return {"backgrounds": []}
-    items = sorted(
-        p.name for p in bg_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in _BACKGROUND_EXTS
-    )
-    return {"backgrounds": items}
+    # Manifest entries (id -> URL objects) first, then legacy local files
+    # (plain filename strings, served via /backgrounds/{filename}).
+    entries = _background_manifest()
+    legacy = []
+    try:
+        bg_dir = _background_dir()
+        if bg_dir is not None:
+            legacy = sorted(
+                p.name for p in bg_dir.iterdir()
+                if p.is_file() and p.suffix.lower() in _BACKGROUND_EXTS
+            )
+    except Exception:
+        legacy = []
+    return {"backgrounds": entries + legacy}
 
 
 @app.get("/api/v1/user/backgrounds/{filename:path}")

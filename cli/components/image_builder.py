@@ -1,9 +1,18 @@
+from __future__ import annotations
+
+import hashlib
 import io
+import json
+import os
 import random
+import tempfile
+import time
 from pathlib import Path
 from typing import Optional, Tuple
+from urllib.parse import urlsplit
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+import aiohttp
 import discord
 
 try:
@@ -71,6 +80,123 @@ BACKGROUND_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".jfif", ".webp", ".bmp", ".gif",
     ".tif", ".tiff", ".avif",
 }
+
+# URL manifest for rank card backgrounds. The manifest itself is a tiny tracked
+# JSON file (website/static/backgrounds.json: [{id, url, thumb?}]); bulk image
+# bytes are NEVER committed and live at external URLs instead. The bot
+# downloads each URL once and serves renders from a local disk cache.
+BACKGROUND_MANIFEST_URL = os.environ.get(
+    "RANK_BG_MANIFEST_URL", "https://prowlbot.xyz/static/backgrounds.json"
+)
+BACKGROUND_MANIFEST_TTL = 600
+BACKGROUND_MAX_BYTES = 25 * 1024 * 1024
+
+_manifest_cache = {"entries": None, "at": 0.0}
+
+
+def _manifest_file() -> Optional[Path]:
+    """Local manifest checkout (dev repo layout, incl. website tree)."""
+    here = Path(__file__).resolve()
+    for cand in (
+        here.parents[2] / "website" / "static" / "backgrounds.json",
+        here.parents[1] / "website" / "static" / "backgrounds.json",
+    ):
+        try:
+            if cand.is_file():
+                return cand
+        except OSError:
+            continue
+    return None
+
+
+def _parse_manifest_entries(raw) -> list:
+    try:
+        items = raw.get("backgrounds") if isinstance(raw, dict) else None
+    except AttributeError:
+        return []
+    if not isinstance(items, list):
+        return []
+    out = []
+    for it in items:
+        if isinstance(it, dict) and it.get("id") and it.get("url"):
+            out.append({"id": str(it["id"]), "url": str(it["url"])})
+    return out
+
+
+async def _load_manifest_entries() -> list:
+    """Manifest entries: local file first, remote fallback, memory-cached."""
+    now = time.monotonic()
+    if _manifest_cache["entries"] is not None and now - _manifest_cache["at"] < BACKGROUND_MANIFEST_TTL:
+        return _manifest_cache["entries"]
+    entries: list = []
+    mf = _manifest_file()
+    if mf is not None:
+        try:
+            entries = _parse_manifest_entries(json.loads(mf.read_text(encoding="utf-8")))
+        except Exception as e:
+            logger.warning(f"Failed to read background manifest: {e}")
+    if not entries:
+        try:
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(BACKGROUND_MANIFEST_URL, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status == 200:
+                        entries = _parse_manifest_entries(await resp.json())
+        except Exception as e:
+            logger.warning(f"Failed to fetch background manifest: {e}")
+    _manifest_cache["entries"] = entries
+    _manifest_cache["at"] = now
+    return entries
+
+
+def _manifest_url_for(background_id: str) -> Optional[str]:
+    for e in _manifest_cache.get("entries") or []:
+        if e["id"] == background_id:
+            return e["url"]
+    return None
+
+
+def _bg_cache_dir() -> Path:
+    for cand in (STATIC_DIR / "cache" / "bg", Path(tempfile.gettempdir()) / "prowl_bg"):
+        try:
+            cand.mkdir(parents=True, exist_ok=True)
+            return cand
+        except OSError:
+            continue
+    return Path(tempfile.gettempdir())
+
+
+def _cache_name_for_url(url: str) -> str:
+    try:
+        ext = urlsplit(url).path.rsplit(".", 1)[-1].lower()
+        ext = "." + ext if ("." + ext) in BACKGROUND_EXTENSIONS else ".png"
+    except Exception:
+        ext = ".png"
+    return hashlib.sha1(url.encode("utf-8")).hexdigest() + ext
+
+
+async def _open_background_url(url: str) -> Optional[Image.Image]:
+    """Download an image URL once, then serve from local disk cache."""
+    try:
+        path = _bg_cache_dir() / _cache_name_for_url(url)
+        if not path.is_file():
+            timeout = aiohttp.ClientTimeout(total=20)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers={"User-Agent": "ProwlBot/1.0"}) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = await resp.read()
+            if len(data) > BACKGROUND_MAX_BYTES:
+                logger.warning(f"Background too large, refusing: {url}")
+                return None
+            try:
+                path.write_bytes(data)
+            except OSError as e:
+                logger.warning(f"Background cache write failed: {e}")
+        return _open_background(path)
+    except Exception as e:
+        logger.warning(f"Failed to load background URL: {e}")
+        return None
 
 DEFAULT_BG_COLOR = (25, 25, 35, 255)
 PRIMARY_COLOR = (139, 92, 246, 255)
@@ -171,22 +297,48 @@ def _open_background(path: Path) -> Optional[Image.Image]:
         return None
 
 
-def _prepare_background(
-    background: Optional[Image.Image],
+async def _prepare_background(
+    background: Optional[object],
     random_background: bool = False,
 ) -> Optional[Image.Image]:
-    if background is None:
-        if not random_background:
-            return None
-        paths = _get_background_paths()
-        if not paths:
-            return None
-        source = _open_background(random.choice(paths))
-    elif isinstance(background, (str, Path)):
-        source = _open_background(Path(background))
-    else:
-        source = background.convert("RGBA")
+    """Resolve a background to a card-fitted image.
 
+    ``background`` may be a PIL image, a manifest id, a legacy local
+    filename inside BACKGROUND_DIR, an absolute local path, or a raw
+    http(s) URL (kept working for configs saved via the old free-text
+    field). ``random_background`` picks a random manifest entry first,
+    falling back to the legacy local directory.
+    """
+    if background is None and not random_background:
+        return None
+    try:
+        entries = await _load_manifest_entries()
+    except Exception:
+        entries = []
+    source: Optional[Image.Image] = None
+    if random_background:
+        if entries:
+            source = await _open_background_url(random.choice(entries)["url"])
+        if source is None:
+            paths = _get_background_paths()
+            if paths:
+                source = _open_background(random.choice(paths))
+    elif isinstance(background, Image.Image):
+        source = background.convert("RGBA")
+    elif isinstance(background, (str, Path)):
+        name = str(background)
+        url = _manifest_url_for(name)
+        if url:
+            source = await _open_background_url(url)
+        if source is None:
+            source = _open_background_name(name)
+        if source is None and name.startswith(("http://", "https://")):
+            source = await _open_background_url(name)
+    else:
+        try:
+            source = background.convert("RGBA")
+        except Exception:
+            source = None
     if source is None:
         return None
     return ImageOps.fit(
@@ -195,6 +347,25 @@ def _prepare_background(
         method=Image.Resampling.LANCZOS,
         centering=(0.5, 0.5),
     )
+
+
+def _open_background_name(name: str) -> Optional[Image.Image]:
+    """Open a legacy local background: filename inside BACKGROUND_DIR
+    (containment-checked) or an absolute local path."""
+    try:
+        cand = Path(name)
+        if not cand.is_absolute():
+            base = BACKGROUND_DIR.resolve()
+            cand = (BACKGROUND_DIR / name).resolve()
+            try:
+                cand.relative_to(base)
+            except ValueError:
+                return None
+        if cand.is_file() and cand.suffix.lower() in BACKGROUND_EXTENSIONS:
+            return _open_background(cand)
+    except OSError:
+        pass
+    return None
 
 
 def _truncate_to_width(
@@ -376,12 +547,12 @@ async def create_rank_card(
     img = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), DEFAULT_BG_COLOR)
     draw = ImageDraw.Draw(img)
 
-    background_image = _prepare_background(
+    background_image = await _prepare_background(
         background,
         random_background=cfg["background"] == "random",
     )
     if background_image is None and cfg["background"] != "random" and isinstance(cfg["background"], str):
-        background_image = _prepare_background(cfg["background"], random_background=False)
+        background_image = await _prepare_background(cfg["background"], random_background=False)
     if background_image is not None:
         overlay = Image.new("RGBA", background_image.size, (0, 0, 0, 110))
         img = Image.alpha_composite(background_image, overlay)

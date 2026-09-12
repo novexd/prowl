@@ -113,9 +113,15 @@
     const g = $("bg-gallery");
     if (!g) return;
     if (!bgList.length) { g.innerHTML = '<div class="re-gallery-empty">No server backgrounds available.</div>'; return; }
-    g.innerHTML = bgList.map(name =>
-      `<img class="bg-thumb" src="/api/v1/user/backgrounds/${encodeURIComponent(name)}" data-name="${name}" alt="${name}" loading="lazy" />`
-    ).join("");
+    g.innerHTML = bgList.map(entry => {
+      // Manifest objects {id, url, thumb} or legacy filename strings.
+      const id = typeof entry === "string" ? entry : entry.id;
+      const src = typeof entry === "string"
+        ? `/api/v1/user/backgrounds/${encodeURIComponent(entry)}`
+        : (entry.thumb || entry.url);
+      const safe = String(id).replace(/"/g, "");
+      return `<img class="bg-thumb" src="${src}" data-name="${safe}" alt="${safe}" loading="lazy" />`;
+    }).join("");
     g.querySelectorAll(".bg-thumb").forEach(thumb => {
       if (thumb.dataset.name === state.config.background) thumb.classList.add("selected");
       thumb.addEventListener("click", () => {
