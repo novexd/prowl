@@ -6,8 +6,14 @@
   /* Full-page custom scrollbar: SimpleBar takes over #app-shell scrolling */
   html, body { height: 100%; overflow: hidden; }
   #app-shell { height: 100vh; max-height: 100vh; }
-  /* SimpleBar dark thumb to match the dashboard */
-  .simplebar-track.simplebar-vertical { background: transparent; }
+  /* SimpleBar dark thumb to match the dashboard, floated clear of the boxes */
+  .simplebar-track.simplebar-vertical {
+    background: transparent;
+    top: 8px;
+    bottom: 8px;
+    right: 6px;
+  }
+  .simplebar-track.simplebar-horizontal { display: none; }
   .simplebar-track.simplebar-vertical .simplebar-scrollbar:before {
     background: rgba(255,255,255,0.06);
     border-radius: 999px;
