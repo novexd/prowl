@@ -63,13 +63,40 @@
     /* Flush full-width canvas, capped before upscale blur */
     max-width: 1200px;
   }
-  #re-stage img#re-preview {
-    display: block;
+  /* The frame block stays visible in every state: the "Rendering preview…"
+     overlay sits centered above it, and the rendered card fills it exactly
+     (3:1 via aspect-ratio) so the block never loses its styling. */
+  #re-canvas-ph {
+    position: relative;
+    aspect-ratio: 3 / 1;
     width: 100%;
-    height: auto;
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.015);
+    overflow: hidden;
+  }
+  #re-canvas-ph img#re-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     user-select: none;
     -webkit-user-drag: none;
   }
+  #re-ph-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  #re-ph-overlay svg { width: 22px; height: 22px; color: rgba(255,255,255,0.2); }
   /* Drag/resize overlay (card space is 900x300; chips use % positioning) */
   #re-overlay { position: absolute; inset: 0; z-index: 5; }
   .re-chip {
@@ -129,24 +156,6 @@
     padding: 1rem;
   }
   .re-box + .re-box { margin-top: 1rem; }
-
-  /* Canvas placeholder (shown until the first live render lands) */
-  #re-canvas-ph {
-    aspect-ratio: 3 / 1;
-    width: 100%;
-    border: 1px dashed rgba(255,255,255,0.12);
-    border-radius: 4px;
-    background: rgba(255,255,255,0.015);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    color: rgba(255,255,255,0.3);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-  #re-canvas-ph svg { width: 22px; height: 22px; color: rgba(255,255,255,0.2); }
 
   /* Background gallery */
   .re-gallery {
@@ -231,10 +240,12 @@
 
     <div class="re-center">
       <div id="re-stage">
-        <img id="re-preview" alt="Rank card preview" style="display:none;" draggable="false" />
         <div id="re-canvas-ph">
-          <i data-lucide="image"></i>
-          <span>Rendering preview…</span>
+          <img id="re-preview" alt="Rank card preview" style="display:none;" draggable="false" />
+          <div id="re-ph-overlay">
+            <i data-lucide="image"></i>
+            <span>Rendering preview…</span>
+          </div>
         </div>
         <div id="re-overlay"></div>
       </div>

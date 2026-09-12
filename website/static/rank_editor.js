@@ -108,13 +108,14 @@
   }
 
   const POLL_MS = 1500, POLL_MAX = 45;
+  const DEBUG = true;
 
   async function renderPreview() {
-    const img = $("re-preview"), ph = $("re-canvas-ph"), st = $("re-preview-status");
+    const img = $("re-preview"), ov = $("re-ph-overlay"), st = $("re-preview-status");
     const my = ++renderSeq;
     const fail = msg => {
       if (my !== renderSeq) return;
-      if (ph) ph.style.display = "";
+      if (ov) ov.style.display = "";
       if (st) st.textContent = msg;
     };
     const show = blob => {
@@ -122,8 +123,9 @@
       const url = URL.createObjectURL(blob);
       if (previewURL) URL.revokeObjectURL(previewURL);
       previewURL = url;
+      if (DEBUG) console.info("[preview] received", blob.size, "bytes");
       if (img) { img.src = url; img.style.display = "block"; }
-      if (ph) ph.style.display = "none";
+      if (ov) ov.style.display = "none";
       if (st) st.textContent = "";
     };
     if (st) st.textContent = "Rendering preview…";
@@ -136,6 +138,7 @@
       });
       job = await res.json().catch(() => ({}));
       if (!res.ok || !job.job_id) throw new Error((job && job.error) || `Preview failed (HTTP ${res.status}).`);
+      if (DEBUG) console.info("[preview] dispatched job", job.job_id);
     } catch (err) {
       fail(String((err && err.message) || err));
       return;
@@ -493,8 +496,8 @@
       });
       const pimg = $("re-preview");
       if (pimg) pimg.addEventListener("error", () => {
-        const ph = $("re-canvas-ph"), st = $("re-preview-status");
-        if (ph) ph.style.display = "";
+        const ov = $("re-ph-overlay"), st = $("re-preview-status");
+        if (ov) ov.style.display = "";
         if (st) st.textContent = "Image was blocked from rendering.";
       });
     } catch (e) {
