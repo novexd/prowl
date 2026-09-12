@@ -106,15 +106,18 @@
             content: { type, active: true },
           })),
       },
-      canvas: {
-        styles: [
-          `.gjs-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
-          `.gjs-cv-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
-          `.gjs-drop-area { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
-          `.gjs-drop-zone { width: ${CV_W}px !important; height: ${CV_H}px !important; }`,
-        ],
-      },
+      telemetry: false,
     });
+
+    // Inject canvas sizing styles
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      .gjs-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }
+      .gjs-cv-canvas { width: ${CV_W}px !important; height: ${CV_H}px !important; }
+      .gjs-drop-area { width: ${CV_W}px !important; height: ${CV_H}px !important; }
+      .gjs-drop-zone { width: ${CV_W}px !important; height: ${CV_H}px !important; }
+    `;
+    document.head.appendChild(styleEl);
 
     const Components = editor.Components;
 
