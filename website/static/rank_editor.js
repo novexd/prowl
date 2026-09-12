@@ -43,6 +43,7 @@
 
   let bgList = [];
   let renderTimer = null, renderSeq = 0, previewURL = null;
+  let previewName = "Username";
   const colorSlots = [];
   const DEBUG = true;
 
@@ -471,6 +472,45 @@
     } catch (e) { rankTextW = 110; }
   }
 
+  async function loadPreviewIdentity() {
+    try {
+      const res = await fetch("/api/v1/user/rank-preview", { credentials: "include" });
+      if (!res.ok) return;
+      const d = await res.json().catch(() => ({}));
+      if (d && d.display_name) previewName = String(d.display_name).slice(0, 32);
+    } catch (e) { /* keep fallback */ }
+  }
+
+  // Mirror of the bot's title render (bold 32px "<name> - Level 12",
+  // truncated to the space between the name x and the panel edge) so the
+  // name highlight hugs the actual text instead of a fixed-size box.
+  function measureTitle(nx) {
+    try {
+      const ctx = document.createElement("canvas").getContext("2d");
+      ctx.font = "700 32px Lexend, sans-serif";
+      const label = `${previewName} - Level 12`;
+      const levelW = ctx.measureText("- Level 12").width;
+      const maxW = 30 + 840 - nx - 20 - levelW - 12;
+      let text = label;
+      if (maxW > 0 && ctx.measureText(text).width > maxW) {
+        const suffix = "...";
+        let lo = 0, hi = label.length;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          if (ctx.measureText(label.slice(0, mid) + suffix).width <= maxW) lo = mid;
+          else hi = mid - 1;
+        }
+        text = label.slice(0, lo) + suffix;
+      }
+      const m = ctx.measureText(text);
+      const w = Math.ceil(m.width);
+      const h = Math.ceil((m.actualBoundingBoxAscent || 30) + (m.actualBoundingBoxDescent || 8));
+      return { w: Math.max(40, w), h: Math.max(20, h) };
+    } catch (e) {
+      return { w: 220, h: 34 };
+    }
+  }
+
   // Mirror of image_builder geometry (bot `or` semantics: 0 falls to default).
   function geomFor(key) {
     const els = state.config.elements;
@@ -486,7 +526,9 @@
       case "avatar": return { x: ax, y: ay, w: asize, h: asize };
       case "name": {
         const e = els.name || {};
-        return { x: e.x || tx, y: e.y || ty, w: 220, h: 34 };
+        const nx = e.x || tx;
+        const t = measureTitle(nx);
+        return { x: nx, y: e.y || ty, w: t.w + 8, h: t.h + 8 };
       }
       case "xp_value": {
         const e = els.xp_value || {};
@@ -827,6 +869,7 @@
       initTooltips();
       measureRankText();
       await loadSettings();
+      await loadPreviewIdentity();
       refreshColorUI();
       renderElementList();
       bindStatic();
