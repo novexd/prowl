@@ -1,3 +1,128 @@
 {
-  "backgrounds": []
+  "backgrounds": [
+    {
+      "id": "10-10-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-10-6k.jpg"
+    },
+    {
+      "id": "10-11-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-11-6k.jpg"
+    },
+    {
+      "id": "10-12-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-12-6k.jpg"
+    },
+    {
+      "id": "10-13-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-13-6k.jpg"
+    },
+    {
+      "id": "10-14-night-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-14-Night-6k.jpg"
+    },
+    {
+      "id": "10-14-day-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-14-Day-6k.jpg"
+    },
+    {
+      "id": "10-15-night-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-15-Night-6k.jpg"
+    },
+    {
+      "id": "10-15-day-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/10-15-Day-6k.jpg"
+    },
+    {
+      "id": "11-big-sur-night-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/11-Big-Sur-Night-6k.jpg"
+    },
+    {
+      "id": "11-big-sur-day-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/11-Big-Sur-Day-6k.jpg"
+    },
+    {
+      "id": "11-big-sur-color-night-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/11-Big-Sur-Color-Night-6k.jpg"
+    },
+    {
+      "id": "11-big-sur-color-day-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/11-Big-Sur-Color-Day-6k.jpg"
+    },
+    {
+      "id": "12-monterey-dark",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/12-Monterey-Dark.jpg"
+    },
+    {
+      "id": "12-monterey-light",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/12-Monterey-Light.jpg"
+    },
+    {
+      "id": "13-ventura-dark",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/13-Ventura-Dark.jpg"
+    },
+    {
+      "id": "13-ventura-light",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/13-Ventura-Light.jpg"
+    },
+    {
+      "id": "14-sonoma-horizon",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/14-Sonoma-Horizon.png"
+    },
+    {
+      "id": "14-sonoma-dark",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/14-Sonoma-Dark.jpg"
+    },
+    {
+      "id": "14-sonoma-light",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/14-Sonoma-Light.jpg"
+    },
+    {
+      "id": "15-sequoia-sunrise",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/15-Sequoia-Sunrise.png"
+    },
+    {
+      "id": "15-sequoia-dark-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/15-Sequoia-Dark-6K.jpg"
+    },
+    {
+      "id": "15-sequoia-light-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/15-Sequoia-Light-6K.jpg"
+    },
+    {
+      "id": "26-tahoe-beach-night",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Beach-Night.png"
+    },
+    {
+      "id": "26-tahoe-beach-dusk",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Beach-Dusk.png"
+    },
+    {
+      "id": "26-tahoe-beach-day",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Beach-Day.png"
+    },
+    {
+      "id": "26-tahoe-beach-dawn",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Beach-Dawn.png"
+    },
+    {
+      "id": "26-tahoe-dark-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Dark-6K.png"
+    },
+    {
+      "id": "26-tahoe-light-6k",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/26-Tahoe-Light-6K.png"
+    },
+    {
+      "id": "27-golden-gate-dark",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/27-Golden-Gate-Dark.png"
+    },
+    {
+      "id": "27-golden-gate",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/27-Golden-Gate.png"
+    },
+    {
+      "id": "27-golden-gate-bridge",
+      "url": "https://media.512pixels.net/downloads/macos-wallpapers-6k/27-Golden-Gate-Bridge.jpg"
+    }
+  ]
 }

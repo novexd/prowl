@@ -89,7 +89,7 @@ BACKGROUND_MANIFEST_URL = os.environ.get(
     "RANK_BG_MANIFEST_URL", "https://prowlbot.xyz/static/backgrounds.json"
 )
 BACKGROUND_MANIFEST_TTL = 600
-BACKGROUND_MAX_BYTES = 25 * 1024 * 1024
+BACKGROUND_MAX_BYTES = 80 * 1024 * 1024
 
 _manifest_cache = {"entries": None, "at": 0.0}
 
