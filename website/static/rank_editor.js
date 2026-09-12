@@ -62,6 +62,11 @@
     });
   }
 
+  function isDark(hex) {
+    const [r, g, b] = hexToRgb(hex);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 110;
+  }
+
   function renderPresets(elId, apply) {
     const el = $(elId);
     if (!el) return;
@@ -72,9 +77,17 @@
       b.className = "md-preset";
       b.textContent = hex;
       b.style.color = hex;
+      if (isDark(hex)) b.style.background = "#fff";
       b.addEventListener("click", () => apply(hexToRgb(hex)));
       el.appendChild(b);
     });
+  }
+
+  function setDirty(dirty) {
+    const btn = $("re-save");
+    if (!btn) return;
+    btn.style.boxShadow = dirty ? "0 0 14px rgba(255,255,255,0.35)" : "";
+    btn.style.borderColor = dirty ? "rgba(255,255,255,0.35)" : "";
   }
 
   function refreshColorUI() {
@@ -87,6 +100,7 @@
       if (state.config.elements[key]) inp.checked = !!state.config.elements[key].enabled;
       inp.onchange = () => {
         if (state.config.elements[key]) state.config.elements[key].enabled = inp.checked;
+        setDirty(true);
       };
     });
   }
@@ -106,9 +120,8 @@
       if (thumb.dataset.name === state.config.background) thumb.classList.add("selected");
       thumb.addEventListener("click", () => {
         state.config.background = thumb.dataset.name;
-        $("re-bg-custom").value = state.config.background;
-        $("re-bg-custom").disabled = false;
         markBgSelected(state.config.background);
+        setDirty(true);
       });
     });
   }
@@ -132,39 +145,28 @@
         state.config.elements[name] = { ...DEFAULTS.elements[name], ...((saved.elements && saved.elements[name]) || {}) };
       }
       state.loaded = JSON.parse(JSON.stringify(state.config));
-      const bgInput = $("re-bg-custom");
       const bg = state.config.background;
-      const isCustom = typeof bg === "string" && bg && bg !== "random";
-      bgInput.value = isCustom ? bg : "";
-      bgInput.disabled = !bg || bg === "random" || bg === "solid";
-      if (isCustom) markBgSelected(bg);
+      if (typeof bg === "string" && bg && bg !== "random") markBgSelected(bg);
       else if (bg === null) markBgSelected("solid");
+      setDirty(false);
     } catch (e) { /* keep defaults */ }
   }
 
   function bindStatic() {
     $("re-bg-random").addEventListener("click", () => {
       state.config.background = "random";
-      $("re-bg-custom").value = "";
-      $("re-bg-custom").disabled = false;
       markBgSelected(null);
+      setDirty(true);
     });
 
     $("re-bg-solid").addEventListener("click", () => {
       state.config.background = null;
-      $("re-bg-custom").value = "";
-      $("re-bg-custom").disabled = true;
       markBgSelected("solid");
+      setDirty(true);
     });
 
-    $("re-bg-custom").addEventListener("change", () => {
-      const v = $("re-bg-custom").value.trim();
-      if (v) { state.config.background = v; markBgSelected(null); }
-      else { state.config.background = "random"; markBgSelected(null); }
-    });
-
-    const setPrimary = (rgb) => { state.config.primary_color = rgb; refreshColorUI(); };
-    const setAccent = (rgb) => { state.config.accent_color = rgb; refreshColorUI(); };
+    const setPrimary = (rgb) => { state.config.primary_color = rgb; refreshColorUI(); setDirty(true); };
+    const setAccent = (rgb) => { state.config.accent_color = rgb; refreshColorUI(); setDirty(true); };
     syncColorPair("re-color-primary", "re-primary-hex", setPrimary);
     syncColorPair("re-color-accent", "re-accent-hex", setAccent);
     renderPresets("re-primary-presets", setPrimary);
@@ -184,6 +186,7 @@
         const d = await res.json();
         if (!res.ok) throw new Error(d.detail || d.error || "save failed");
         state.loaded = JSON.parse(JSON.stringify(state.config));
+        setDirty(false);
         if (typeof showToast === "function") showToast("Rank card saved.", "success");
       } catch (err) {
         if (typeof showToast === "function") showToast(String(err.message || err), "error", 5000);
@@ -199,9 +202,8 @@
       state.config = JSON.parse(JSON.stringify(DEFAULTS));
       bindToggles();
       refreshColorUI();
-      $("re-bg-custom").value = "";
-      $("re-bg-custom").disabled = false;
       markBgSelected(null);
+      setDirty(true);
       if (typeof showToast === "function") showToast("Reset to defaults. Hit Save to keep it.", "info");
     });
   }
