@@ -260,6 +260,39 @@ CSP = (
 )
 
 
+_csp_extra = {"img_hosts": [], "at": 0.0}
+
+
+def _csp_header():
+    """Build the CSP per request, merging background-manifest image hosts
+    into img-src (TTL-cached). New manifest hosts work with zero code
+    changes; static base list stays as the fallback."""
+    try:
+        now = time.monotonic()
+    except Exception:
+        now = 0.0
+    if now - _csp_extra["at"] > 60:
+        hosts = set()
+        try:
+            for e in _background_manifest():
+                u = e.get("url", "") if isinstance(e, dict) else ""
+                if "://" in u:
+                    scheme, rest = u.split("://", 1)
+                    if scheme in ("http", "https"):
+                        host = rest.split("/", 1)[0]
+                        if host:
+                            hosts.add(f"{scheme}://{host}")
+        except Exception:
+            pass
+        _csp_extra["img_hosts"] = sorted(hosts)
+        _csp_extra["at"] = now
+    extra = " ".join(_csp_extra["img_hosts"])
+    base_img = "img-src 'self' data: https://cdn.discordapp.com https://img.itch.zone"
+    if extra:
+        return CSP.replace(base_img, base_img + " " + extra)
+    return CSP
+
+
 class SecurityHeadersMiddleware:
     def __init__(self, app):
         self.app = app
@@ -279,7 +312,7 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 from starlette.datastructures import MutableHeaders
                 headers = MutableHeaders(scope=message)
-                headers["Content-Security-Policy"] = CSP
+                headers["Content-Security-Policy"] = _csp_header()
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                 headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
