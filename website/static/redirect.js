@@ -1,7 +1,7 @@
 /*
  * redirect.js - OAuth redirect handling with a persistent loading overlay.
  *
- * Problem this fixes: on Vercel, after you sit in the Discord/GitHub/Nerimity
+ * Problem this fixes: on Vercel, after you sit in the Discord/GitHub
  * consent window and get redirected back, the server can cold-start for ~5s
  * with no loading animation visible. Opening the OAuth flow in a POPUP keeps the
  * current page alive (showing the loader) through the whole round-trip, and once
@@ -89,11 +89,7 @@
       clearInterval(poll);
       clearInterval(closeChk);
       try { popup.close(); } catch (e) {}
-      if (opts.reload) {
-        window.location.reload();
-      } else {
-        window.location.href = (path || "/servers") + (search || "");
-      }
+      window.location.href = (path || "/servers") + (search || "");
     };
     var poll = setInterval(function () {
       var loc;
@@ -112,9 +108,9 @@
         // Failure (or link flow that bounced) - go back to login.
         finished("/login", "");
       }
-      // Note: the OAuth *start* paths (/auth/discord, /login/nerimity,
-      // /login/github) are also on our host but are not matched here, so we
-      // correctly keep waiting until the provider redirects us back.
+      // Note: the OAuth *start* paths (/auth/discord, /login/github) are
+      // also on our host but are not matched here, so we correctly keep
+      // waiting until the provider redirects us back.
     }, 400);
     var closeChk = setInterval(function () {
       if (popup.closed && !done.v) {
@@ -131,8 +127,8 @@
   window.prowlHideLoader = hideLoader;
 
   // Intercept clicks on the OAuth start links anywhere on the page (covers both
-  // the static login buttons and dynamically-injected links like the dashboard's
-  // "Connect Nerimity" button) without needing per-link wiring.
+  // the static login buttons and dynamically-injected links) without needing
+  // per-link wiring.
   document.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("a") : null;
     if (!a) return;
@@ -141,9 +137,6 @@
     if (href.indexOf("/auth/discord") === 0) {
       e.preventDefault();
       prowlOAuth(href);
-    } else if (href.indexOf("/login/nerimity") === 0) {
-      e.preventDefault();
-      prowlOAuth(href, { reload: a.hasAttribute("data-oauth-reload") });
     } else if (href.indexOf("/login/github") === 0) {
       e.preventDefault();
       prowlOAuth(href);

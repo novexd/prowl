@@ -79,16 +79,6 @@
             </div>
             <div id="prof-github-actions" style="flex-shrink:0;"></div>
           </div>
-          <div class="md-behavior-item" style="justify-content:space-between;align-items:center;">
-            <div style="display:flex;align-items:center;gap:0.6rem;">
-              <img src="/static/nerimity.png" alt="Nerimity" style="width:16px;height:16px;border-radius:3px;flex-shrink:0;" />
-              <div>
-                <div style="font-size:0.82rem;font-weight:700;">Nerimity</div>
-                <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);" id="prof-nerimity-state">Checking...</div>
-              </div>
-            </div>
-            <div id="prof-nerimity-actions" style="flex-shrink:0;"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -130,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('prof-created').textContent = dt.toLocaleDateString();
     }
     renderGithub(d.account || {});
-    renderNerimity(d.account || {});
   }).catch(()=>{});
 
   function renderGithub(acct) {
@@ -149,25 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       state.textContent = 'Not connected';
       actions.innerHTML = '<a href="/login/github" class="prof-btn" style="padding:0.4rem 0.7rem;font-size:0.72rem;">Connect GitHub</a>';
-    }
-  }
-
-  function renderNerimity(acct) {
-    const state = document.getElementById('prof-nerimity-state');
-    const actions = document.getElementById('prof-nerimity-actions');
-    if (!state || !actions) return;
-    if (acct.nerimity_username) {
-      state.textContent = 'Connected · @' + acct.nerimity_username;
-      actions.innerHTML = '<button class="prof-btn prof-btn-danger" id="prof-nerimity-unlink" style="padding:0.4rem 0.7rem;font-size:0.72rem;">Disconnect</button>';
-      document.getElementById('prof-nerimity-unlink').addEventListener('click', async () => {
-        try {
-          const res = await fetch('/api/v1/account/nerimity/unlink', { method:'POST' });
-          if (res.ok) { renderNerimity({}); if (typeof showToast === 'function') showToast('Nerimity account disconnected.', 'success'); }
-        } catch (e) {}
-      });
-    } else {
-      state.textContent = 'Not connected';
-      actions.innerHTML = '<a href="/login/nerimity" class="prof-btn" data-oauth-reload style="padding:0.4rem 0.7rem;font-size:0.72rem;">Connect Nerimity</a>';
     }
   }
 

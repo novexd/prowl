@@ -60,10 +60,6 @@
           </svg>
           Continue with GitHub
         </a>
-        <a href="/login/nerimity" class="btn-github" id="nerimity-btn">
-          <img src="https://img.itch.zone/aW1nLzE1OTU3OTMzLnBuZw==/original/ocCxEs.png" alt="Nerimity" style="width:20px;height:20px;border-radius:3px;flex-shrink:0;" />
-          Continue with Nerimity
-        </a>
       </div>
 
       <div class="disclaimer gsap-disclaimer" id="disclaimer" style="display:none;">
@@ -151,7 +147,6 @@
       document.getElementById('btn-signin').classList.remove('active');
       document.getElementById('btn-signup').classList.add('active');
       document.getElementById('github-btn').style.display = 'none';
-      document.getElementById('nerimity-btn').style.display = 'none';
       document.getElementById('disclaimer').style.display = '';
     }
 
@@ -210,19 +205,18 @@
       const btnIn    = document.getElementById('btn-signin');
       const btnUp    = document.getElementById('btn-signup');
       const githubBtn = document.getElementById('github-btn');
-      const nerimityBtn = document.getElementById('nerimity-btn');
       const disclaimer = document.getElementById('disclaimer');
 
       btnIn.classList.toggle('active', m === 'signin');
       btnUp.classList.toggle('active', m === 'signup');
 
       if (m === 'signup') {
-        gsap.to([githubBtn, nerimityBtn], { opacity: 0, height: 0, margin: 0, padding: 0, borderWidth: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { githubBtn.style.display = 'none'; nerimityBtn.style.display = 'none'; } });
+        gsap.to([githubBtn], { opacity: 0, height: 0, margin: 0, padding: 0, borderWidth: 0, duration: 0.25, ease: 'power2.in', onComplete: () => { githubBtn.style.display = 'none'; } });
         disclaimer.style.display = '';
         gsap.fromTo(disclaimer, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
       } else {
-        [githubBtn, nerimityBtn].forEach(b => { b.style.display = ''; });
-        gsap.to([githubBtn, nerimityBtn], { opacity: 1, height: 'auto', padding: '0.9rem 1.5rem', borderWidth: 1, duration: 0.25, ease: 'power2.out' });
+        [githubBtn].forEach(b => { b.style.display = ''; });
+        gsap.to([githubBtn], { opacity: 1, height: 'auto', padding: '0.9rem 1.5rem', borderWidth: 1, duration: 0.25, ease: 'power2.out' });
         gsap.to(disclaimer, { opacity: 0, y: 8, duration: 0.2, ease: 'power2.in', onComplete: () => { disclaimer.style.display = 'none'; } });
       }
 
