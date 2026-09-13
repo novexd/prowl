@@ -291,6 +291,21 @@ def emoji_title(key: str, text: str) -> str:
         return text
     return f"{emoji}  {text}"
 
+
+# ==================================================================================================
+#                                     EMBED STYLING (headers/dividers)
+# ==================================================================================================
+
+# Discord renders `## ` as a big header inside embed descriptions and field
+# values (not in titles). DIVIDER_LINE fakes the horizontal rules other bots
+# use between sections (embeds have no border/outline primitive).
+DIVIDER_LINE = "─" * 16
+
+
+def header_md(text: str) -> str:
+    """Big-title markdown for embed descriptions/field values."""
+    return f"## {text}"
+
 _SEMANTIC = {
     "brand": BRAND, "violet": BRAND, "purple": BRAND,
     "success": SUCCESS, "green": SUCCESS, "ok": SUCCESS,
@@ -358,6 +373,23 @@ class EmbedBuilder:
 
     def description(self, text: str) -> "EmbedBuilder":
         self._description = text[:4096] if text else None
+        return self
+
+    def header(self, text: str) -> "EmbedBuilder":
+        """Prepend a big ``## `` title line to the description.
+
+        Titles can't render header markdown, so stylish embeds lead the
+        description with one instead. Creates the description if absent.
+        """
+        line = f"## {text}"
+        combined = f"{line}\n{self._description}" if self._description else line
+        self._description = combined[:4096]
+        return self
+
+    def divider(self) -> "EmbedBuilder":
+        """Append a horizontal separator field (embeds have no outline/border
+        primitive, so sections are split with a rule line instead)."""
+        self._fields.append({"name": "\u200b", "value": DIVIDER_LINE, "inline": False})
         return self
 
     def color(self, value: Union[str, int, discord.Color]) -> "EmbedBuilder":
@@ -883,5 +915,5 @@ def embed_from_dict(data: dict) -> discord.Embed:
 
 
 def basic_action_embed(key: str, message: str, color: str = "brand") -> discord.Embed:
-    """Basic-mode action embed: emoji + two spaces + message as the title (no fields)."""
-    return EmbedBuilder().title(emoji_title(key, message)).color(color).build()
+    """Basic-mode action embed: big ``## `` header (emoji + message) as the description."""
+    return EmbedBuilder().description(f"## {emoji_title(key, message)}").color(color).build()

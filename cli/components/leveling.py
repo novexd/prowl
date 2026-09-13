@@ -26,6 +26,10 @@ LEVELING_DEFAULTS = {
     "level_up_message_mode": "basic", "level_up_embed": {},
     "xp_per_message_min": 15,
     "xp_per_message_max": 25,
+    "tag_rewards_enabled": False,
+    "tag_role_id": None,
+    "tag_xp_multiplier": 1.0,
+    "tag_remove_on_loss": False,
 }
 XP_PER_MESSAGE = (15, 25)
 XP_COOLDOWN = 60
@@ -210,7 +214,16 @@ class Leveling(commands.Cog, name="Leveling"):
                 frenzy_mult = await get_frenzy_multiplier(message.guild.id)
         except Exception:
             pass
-        rate = base_rate * role_mult * frenzy_mult
+        # Server-tag multiplier
+        tag_mult = 1.0
+        try:
+            tag_cog = self.bot.get_cog("TagRewards")
+            if tag_cog:
+                from .tagrewards import get_tag_multiplier
+                tag_mult = await get_tag_multiplier(message.guild.id, message.author)
+        except Exception:
+            pass
+        rate = base_rate * role_mult * frenzy_mult * tag_mult
         earned = int(earned * rate)
         if earned <= 0:
             return
@@ -264,27 +277,12 @@ class Leveling(commands.Cog, name="Leveling"):
                             xp_needed=xp_needed,
                             granted_role=granted_role,
                         )
-                        progress = create_progress_bar(
-                            new_xp - xp_for_level(new_level),
-                            xp_for_level(new_level + 1) - xp_for_level(new_level),
-                            15,
+                        card = await create_level_up_card(
+                            message.author, new_level, new_xp, xp_needed,
+                            guild_name=message.guild.name if message.guild else "Server"
                         )
-                        embed = (
-                            EmbedBuilder()
-                            .title("Level up!")
-                            .description(msg)
-                            .color("green")
-                            .row(
-                                ("Level", f"**{new_level}**"),
-                                ("XP", f"{new_xp:,}"),
-                                ("Next Level", f"{xp_needed:,} XP needed"),
-                            )
-                            .field("Progress", f"{progress}")
-                        )
-                        if granted_role:
-                            embed.field("Role Earned!", granted_role.mention)
-                        embed.timestamp(datetime.datetime.utcnow())
-                        await channel.send(embed=embed.build())
+                        file = discord.File(card, filename=f"levelup_{message.author.id}.png")
+                        await channel.send(content=msg, file=file)
                 except Exception as e:
                     logger.warning(f"Failed to send level up message: {e}")
 
@@ -374,8 +372,8 @@ class Leveling(commands.Cog, name="Leveling"):
             lines.append(f"{medal} {name} - Level {lvl} ({row['xp']:,} XP)")
         embed = (
             EmbedBuilder()
-            .title(emoji_title("leaderboard", "XP Leaderboard"))
             .description("\n".join(lines))
+            .header(emoji_title("leaderboard", "XP Leaderboard"))
             .color("gold")
             .footer(f"Page {page}/{total_pages} | Total: {total_users} users")
             .timestamp(datetime.datetime.utcnow())

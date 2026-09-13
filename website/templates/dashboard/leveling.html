@@ -72,6 +72,44 @@
 
     <div class="md-section">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin-bottom:0;">Server Tag Rewards</div>
+          <label class="md-toggle"><input type="checkbox" id="lvl-tag-enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.3rem 0 0.6rem;line-height:1.5;">Reward members who publicly display this server's tag. They get a role and multiplied XP while tagged.</p>
+        <div id="tag-config">
+          <div class="md-behavior-list">
+            <div class="md-behavior-item" style="align-items:flex-start;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Reward Role</div>
+                <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin:0.15rem 0 0.3rem;">Granted while tagged (removed when the tag comes off, if enabled below)</div>
+                <div class="md-custom-select" id="tag-role-select-wrap">
+                  <button class="md-custom-select-btn" id="tag-role-select-btn">Select role...</button>
+                  <div class="md-custom-select-drop" id="tag-role-select-drop"></div>
+                </div>
+              </div>
+            </div>
+            <div class="md-behavior-item" style="justify-content:space-between;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Tag XP Multiplier</div>
+                <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Extra XP rate for tagged members (1 – 10)</div>
+              </div>
+              <input type="number" class="md-input" data-key="tag_xp_multiplier" min="1" max="10" step="0.5" value="1" style="width:70px;" />
+            </div>
+            <div class="md-behavior-item" style="justify-content:space-between;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Remove Role on Tag Loss</div>
+                <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:0.15rem;">Take the reward role back when a member removes the tag</div>
+              </div>
+              <label class="md-toggle"><input type="checkbox" id="lvl-tag-remove" /><span class="md-toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md-section">
+      <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.4rem;">
           <div class="md-section-title">Level-Up Message</div>
           <div class="md-segmented">
@@ -460,6 +498,14 @@ function renderLevelRoles(roles) {
   }));
 }
 
+function syncTagRoleBtn() {
+    const tb = document.getElementById('tag-role-select-btn');
+    if (!tb) return;
+    const rid = SETTINGS_SNAPSHOT.tag_role_id;
+    const name = rid ? (ROLE_MAP[String(rid)] || null) : null;
+    tb.textContent = name ? '@' + name : (rid ? 'Select role...' : 'None');
+  }
+
 function renderMultipliers(mults) {
   const el = document.getElementById('multiplier-list');
   const entries = Object.entries(mults).sort((a,b) => parseFloat(b[1]) - parseFloat(a[1]));
@@ -559,6 +605,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     renderLevelRoles(SETTINGS_SNAPSHOT.level_roles || {});
     renderMultipliers(SETTINGS_SNAPSHOT.role_xp_multipliers || {});
+    syncTagRoleBtn();
+    const tbtn = document.getElementById('tag-role-select-btn');
+    const tdrop = document.getElementById('tag-role-select-drop');
+    if (tdrop) {
+      tdrop.innerHTML = `<button class="md-custom-opt" data-id="">None</button>` + roles.map(r => `<button class="md-custom-opt" data-id="${r.id}">@${esc(r.name)}</button>`).join('');
+      tdrop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+        tbtn.textContent = b.dataset.id ? b.textContent : 'None';
+        markChanged('tag_role_id', b.dataset.id || null);
+        tdrop.classList.remove('is-open');
+      }));
+      tbtn.addEventListener('click', (e) => { e.stopPropagation(); tdrop.classList.toggle('is-open'); });
+      document.addEventListener('click', (e) => { if(!e.target.closest('#tag-role-select-wrap')) tdrop.classList.remove('is-open'); });
+    }
   }).catch(()=>{});
 
   document.getElementById('lvl-role-add-btn').addEventListener('click', () => {
@@ -602,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const random = document.getElementById('lvl-random');
     if (enabled) enabled.checked = !!s.enabled;
     if (random) random.checked = s.random_xp !== false;
-    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
+    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max','tag_xp_multiplier'].forEach(k => {
       const el = document.querySelector(`[data-key="${k}"]`);
       if (el && s[k] !== undefined) el.value = s[k];
     });
@@ -617,6 +676,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (enabled) enabled.addEventListener('change', function(){ markChanged('enabled', this.checked); renderDisabledState(); });
     if (random) random.addEventListener('change', function(){ markChanged('random_xp', this.checked); renderRandomState(); });
+    const tagEnabled = document.getElementById('lvl-tag-enabled');
+    const tagRemove = document.getElementById('lvl-tag-remove');
+    if (tagEnabled) {
+      tagEnabled.checked = !!s.tag_rewards_enabled;
+      document.getElementById('tag-config').classList.toggle('is-disabled', !s.tag_rewards_enabled);
+      tagEnabled.addEventListener('change', function(){
+        markChanged('tag_rewards_enabled', this.checked);
+        document.getElementById('tag-config').classList.toggle('is-disabled', !this.checked);
+      });
+    }
+    if (tagRemove) {
+      tagRemove.checked = !!s.tag_remove_on_loss;
+      tagRemove.addEventListener('change', function(){ markChanged('tag_remove_on_loss', this.checked); });
+    }
+    syncTagRoleBtn();
     document.querySelectorAll('input[type="number"][data-key]').forEach(inp => inp.addEventListener('input', function(){
       markChanged(this.dataset.key, parseFloat(this.value) || 0);
     }));
@@ -683,10 +757,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     SETTINGS_SNAPSHOT = { ...reverted };
     setModeView('level', reverted.level_up_message_mode || 'basic', false);
     // Revert simple inputs
-    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max'].forEach(k => {
+    ['xp_rate','xp_cooldown','xp_per_message_min','xp_per_message_max','tag_xp_multiplier'].forEach(k => {
       const el = document.querySelector(`[data-key="${k}"]`);
       if (el) el.value = (k in reverted) ? reverted[k] : '';
     });
+    const tagEnabled = document.getElementById('lvl-tag-enabled');
+    if (tagEnabled) tagEnabled.checked = !!reverted.tag_rewards_enabled;
+    const tagRemove = document.getElementById('lvl-tag-remove');
+    if (tagRemove) tagRemove.checked = !!reverted.tag_remove_on_loss;
+    document.getElementById('tag-config').classList.toggle('is-disabled', !reverted.tag_rewards_enabled);
+    syncTagRoleBtn();
     const msg = document.querySelector('[data-key="level_up_message"]');
     if (msg) msg.value = reverted.level_up_message || '';
     const enabled = document.getElementById('lvl-enabled');

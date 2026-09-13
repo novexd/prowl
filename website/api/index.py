@@ -1911,6 +1911,7 @@ def _sanitize_setting(key: str, value, defaults: dict):
               or key.endswith("_channel")
               or key in ("modlog_channel_id", "default_announce_channel_id", "default_ping_role",
                          "channel_id", "auto_role_id", "verified_role_id", "support_role_id",
+                         "tag_role_id",
                          "category_id", "panel_channel_id", "log_channel_id", "panel_message_id"))
     if id_key:
         if value is None or value == "":
@@ -2600,6 +2601,28 @@ async def server_health(guild_id: str, request: Request):
     week_ago = (now - timedelta(days=7)).date().isoformat()
     two_weeks_ago = (now - timedelta(days=14)).date().isoformat()
 
+    # Small-server leniency: absolute thresholds punish small communities
+    # (a quiet week tanks activity, one leave tanks retention). Each factor
+    # is blended toward 100 based on member count.
+    member_count = 0
+    try:
+        mc_row = await fetchrow(
+            "SELECT member_count FROM guild_stats_history WHERE guild_id = ? AND day = ?",
+            str(guild_id), today,
+        )
+        if mc_row and mc_row["member_count"]:
+            member_count = int(mc_row["member_count"])
+    except Exception:
+        pass
+    if member_count >= 200:
+        leniency = 0.0
+    elif member_count >= 100:
+        leniency = 0.10
+    elif member_count >= 50:
+        leniency = 0.20
+    else:
+        leniency = 0.30
+
     # 1. Activity Trend: compare this week's avg messages vs last week's
     activity_score = 50
     try:
@@ -2709,6 +2732,14 @@ async def server_health(guild_id: str, request: Request):
     except Exception:
         pass
 
+    if leniency > 0:
+        def _soft(s):
+            return round(s + (100 - s) * leniency)
+        activity_score = _soft(activity_score)
+        mod_score = _soft(mod_score)
+        retention_score = _soft(retention_score)
+        quality_score = _soft(quality_score)
+
     total_score = round((activity_score + mod_score + retention_score + quality_score) / 4)
     if total_score >= 80: color = "#22C55E"
     elif total_score >= 60: color = "#F59E0B"
@@ -2717,6 +2748,7 @@ async def server_health(guild_id: str, request: Request):
 
     return {
         "score": total_score, "color": color,
+        "member_count": member_count, "leniency": leniency,
         "factors": {
             "activity": activity_score,
             "mod_response": mod_score,
@@ -3444,6 +3476,10 @@ LEVELING_DEFAULTS = {
     "level_roles": {},
     "level_up_message": "{user} reached **level {level}**!",
     "level_up_message_mode": "basic", "level_up_embed": {},
+    "tag_rewards_enabled": False,
+    "tag_role_id": None,
+    "tag_xp_multiplier": 1.0,
+    "tag_remove_on_loss": False,
 }
 
 
@@ -3527,6 +3563,17 @@ async def leveling_settings_set(guild_id: str, request: Request):
         if err:
             return JSONResponse({"error": err}, status_code=400)
         err = await _save_settings("leveling_settings", str(guild_id), key, clean, LEVELING_DEFAULTS)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return {"ok": True}
+    if key == "tag_xp_multiplier":
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "tag_xp_multiplier must be a number"}, status_code=400)
+        if f < 1.0 or f > 10.0:
+            return JSONResponse({"error": "tag_xp_multiplier must be 1.0 – 10.0"}, status_code=400)
+        err = await _save_settings("leveling_settings", str(guild_id), key, round(f, 2), LEVELING_DEFAULTS)
         if err:
             return JSONResponse({"error": err}, status_code=400)
         return {"ok": True}
@@ -6396,8 +6443,9 @@ async def more_channels(guild_id: str, request: Request):
 
 
 async def _get_more_settings(guild_id: str):
-    """Load sticky-message settings from bot_stats."""
-    out = {"sticky_enabled": False, "sticky_messages": []}
+    """Load sticky-message + scheduled-message settings from bot_stats."""
+    out = {"sticky_enabled": False, "sticky_messages": [],
+           "scheduled_enabled": False, "scheduled_messages": []}
     row = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_sticky_enabled_{guild_id}")
     if row and row["value"]:
         out["sticky_enabled"] = row["value"] == "1"
@@ -6407,7 +6455,68 @@ async def _get_more_settings(guild_id: str):
             out["sticky_messages"] = json.loads(row2["value"])
         except Exception:
             out["sticky_messages"] = []
+    row3 = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_scheduled_enabled_{guild_id}")
+    if row3 and row3["value"]:
+        out["scheduled_enabled"] = row3["value"] == "1"
+    row4 = await fetchrow("SELECT value FROM bot_stats WHERE key = ?", f"more_scheduled_messages_{guild_id}")
+    if row4 and row4["value"]:
+        try:
+            out["scheduled_messages"] = json.loads(row4["value"])
+        except Exception:
+            out["scheduled_messages"] = []
     return out
+
+
+def _sanitize_scheduled_messages(value):
+    """Validate scheduled_messages: list of max 10 {channel_id, type, message?, embed?, interval_minutes}."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except Exception:
+            value = []
+    if not isinstance(value, list):
+        return None, "scheduled_messages must be a list"
+    if len(value) > 10:
+        return None, "too many scheduled messages (max 10)"
+    clean = []
+    for e in value:
+        if not isinstance(e, dict):
+            return None, "each scheduled message must be an object"
+        channel_id = e.get("channel_id")
+        if not _valid_snowflake(channel_id):
+            return None, "scheduled message channel must be a valid Discord ID"
+        kind = e.get("type", "basic")
+        if kind not in ("basic", "custom"):
+            return None, "scheduled message type must be basic or custom"
+        try:
+            interval = int(e.get("interval_minutes", 60))
+        except (TypeError, ValueError):
+            return None, "scheduled message interval must be a number of minutes"
+        if interval < 5 or interval > 60 * 24 * 30:
+            return None, "scheduled message interval must be 5 minutes to 30 days"
+        entry = {"channel_id": str(channel_id), "type": kind, "interval_minutes": interval}
+        if kind == "basic":
+            message = str(e.get("message") or "")[:2000]
+            if not message:
+                return None, "scheduled message text is required"
+            entry["message"] = message
+        else:
+            emb, err = _sanitize_panel_embed(e.get("embed"))
+            if err:
+                return None, f"scheduled message embed: {err}"
+            if not emb:
+                return None, "scheduled message embed is required"
+            entry["embed"] = emb
+            if e.get("message"):
+                entry["message"] = str(e["message"])[:2000]
+        try:
+            nxt = float(e.get("next_run") or 0)
+        except (TypeError, ValueError):
+            nxt = 0
+        if nxt > 0:
+            entry["next_run"] = nxt
+        clean.append(entry)
+    return clean, None
 
 
 @app.get("/api/v1/more/{guild_id}/settings")
@@ -6427,6 +6536,8 @@ async def more_settings_set(guild_id: str, request: Request):
         return JSONResponse({"error": "missing key"}, status_code=400)
     if key == "sticky_enabled":
         value = "1" if value else "0"
+    elif key == "scheduled_enabled":
+        value = "1" if value else "0"
     elif key == "sticky_messages":
         if isinstance(value, str):
             try:
@@ -6436,6 +6547,11 @@ async def more_settings_set(guild_id: str, request: Request):
         if not isinstance(value, list):
             return JSONResponse({"error": "sticky_messages must be a list"}, status_code=400)
         value = json.dumps(value)
+    elif key == "scheduled_messages":
+        clean, err = _sanitize_scheduled_messages(value)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        value = json.dumps(clean)
     else:
         return JSONResponse({"error": f"unknown key: {key}"}, status_code=400)
     stat_key = f"more_{key}_{guild_id}"

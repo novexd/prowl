@@ -71,9 +71,10 @@ class TicketView(discord.ui.View):
                     owner = channel.owner
                     log_embed = (
                         EmbedBuilder()
-                        .title(emoji_title("ticket", "Ticket Closed"))
                         .description(f"Ticket **{channel.name}** has been closed.")
+                        .header(emoji_title("ticket", "Ticket Closed"))
                         .color("red")
+                        .divider()
                         .row(
                             ("Opened By", owner.mention if owner else "Unknown"),
                             ("Closed By", i.user.mention),
@@ -90,8 +91,8 @@ class TicketView(discord.ui.View):
             try:
                 await i.user.send(
                     embed=EmbedBuilder()
-                    .title(emoji_title("ticket", "Ticket Closed"))
                     .description(f"Your ticket in **{i.guild.name}** has been closed.")
+                    .header(emoji_title("ticket", "Ticket Closed"))
                     .color("grey")
                     .timestamp(datetime.datetime.utcnow())
                     .build()

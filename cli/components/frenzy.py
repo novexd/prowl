@@ -123,8 +123,8 @@ class Frenzy(commands.Cog, name="Frenzy"):
                             try:
                                 embed = (
                                     EmbedBuilder()
-                                    .title(emoji_title("bolt", "Frenzy Mode Ended"))
                                     .description("The XP frenzy has ended. Back to normal!")
+                                    .header(emoji_title("bolt", "Frenzy Mode Ended"))
                                     .color("info")
                                     .timestamp(datetime.datetime.utcnow())
                                     .build()
@@ -272,8 +272,8 @@ class Frenzy(commands.Cog, name="Frenzy"):
                     dur_text = f"for {duration_minutes} minutes" if duration_minutes else "until stopped"
                     embed = (
                         EmbedBuilder()
-                        .title(emoji_title("bolt", "Frenzy Mode Activated!"))
                         .description(f"**{multiplier}x XP** {dur_text}!\n\n**Reason:** {reason}")
+                        .header(emoji_title("bolt", "Frenzy Mode Activated!"))
                         .color("brand")
                         .timestamp(datetime.datetime.utcnow())
                         .build()

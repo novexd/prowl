@@ -64,12 +64,57 @@
       </div>
     </div>
 
-    <!-- Coming Soon -->
+    <!-- Add Scheduled Message -->
     <div class="md-section" style="flex:1;">
       <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
-        <div class="md-section-title">Coming Soon</div>
-        <div style="font-size:0.78rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.6;">
-          <p>More settings will be added here as the bot grows. This page is for niche configuration options that don't fit into the main feature pages.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.4rem;">
+          <div class="md-section-title" style="margin-bottom:0;">Scheduled Messages</div>
+          <label class="md-toggle"><input type="checkbox" data-key="scheduled_enabled" id="scheduled-enabled" /><span class="md-toggle-slider"></span></label>
+        </div>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.35);margin:0.3rem 0 0.75rem;line-height:1.5;">Send a message to a channel on repeat. It posts automatically every interval.</p>
+
+        <div id="scheduled-config">
+          <div class="md-section-title" style="font-size:0.78rem;margin-bottom:0.4rem;">Add Scheduled Message</div>
+          <div class="md-behavior-list">
+            <div class="md-behavior-item" style="align-items:flex-start;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Channel</div>
+                <div class="md-custom-select" id="new-sched-channel">
+                  <button class="md-custom-select-btn">Select channel...</button>
+                  <div class="md-custom-select-drop"></div>
+                </div>
+              </div>
+            </div>
+            <div class="md-behavior-item" style="align-items:flex-start;">
+              <div style="flex:1;">
+                <div class="md-behavior-label">Repeat Every</div>
+                <div class="md-custom-select" id="new-sched-interval">
+                  <button class="md-custom-select-btn" data-minutes="60">Every hour</button>
+                  <div class="md-custom-select-drop"></div>
+                </div>
+                <div id="new-sched-custom-wrap" style="display:none;margin-top:0.4rem;">
+                  <input type="number" class="md-input" id="new-sched-custom" min="5" max="43200" value="60" />
+                  <div class="md-vars-hint">Custom minutes (5 – 43200).</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.5rem;flex-wrap:wrap;gap:0.4rem;">
+            <div class="md-behavior-label" style="margin:0;">Message</div>
+            <div class="md-segmented">
+              <button class="extra-tab msg-mode-tab is-active" data-mode="basic" data-sched-new-tab>Basic</button>
+              <button class="extra-tab msg-mode-tab" data-mode="custom" data-sched-new-tab>Custom</button>
+            </div>
+          </div>
+          <div data-sched-new-basic>
+            <textarea class="md-input md-textarea" id="new-sched-message" rows="3" placeholder="Type your scheduled message here..." style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.75);"></textarea>
+            <div class="md-vars-hint">Variables: {server} {channel} {membercount}</div>
+          </div>
+          <div data-sched-new-custom style="display:none;">
+            <button class="md-action-btn" id="new-sched-embed-btn" style="width:100%;justify-content:center;padding:0.5rem;"><i data-lucide="pen-square"></i> Edit Custom Embed</button>
+            <p style="font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:0.5rem;line-height:1.5;">Build a full embed (title, description, color, fields, footer).</p>
+          </div>
+          <button class="md-action-btn" id="add-sched-btn" style="margin-top:0.75rem;justify-content:center;background:rgba(255,255,255,0.1);color:#e9edf5;"><i data-lucide="plus"></i> Add Scheduled Message</button>
         </div>
       </div>
     </div>
@@ -81,6 +126,14 @@
     <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
       <div class="md-section-title">Active Sticky Messages</div>
       <div id="sticky-list"></div>
+    </div>
+  </div>
+
+<!-- Active Scheduled Messages -->
+  <div class="md-section" style="margin-top:0.75rem;">
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(255,255,255,0.015);padding:1rem;">
+      <div class="md-section-title">Active Scheduled Messages</div>
+      <div id="sched-list"></div>
     </div>
   </div>
 
@@ -254,6 +307,8 @@ document.getElementById('ee-save').addEventListener('click', () => {
   }
   if (embedEditTarget === '__new__') {
     newStickyEmbed = e;
+  } else if (embedEditTarget === '__new_sched__') {
+    newSchedEmbed = e;
   } else if (typeof embedEditTarget === 'number') {
     stickyMessages[embedEditTarget].embed = e;
     renderStickyList();
@@ -350,6 +405,120 @@ document.getElementById('add-sticky-btn').addEventListener('click', () => {
   if (typeof showToast === 'function') showToast('Sticky message added.', 'success');
 });
 
+// ── Scheduled messages ──
+let schedMessages = [];
+let LOADED_SCHED = [];
+let newSchedMode = 'basic';
+let newSchedEmbed = null;
+
+const SCHED_INTERVALS = [
+  [60, 'Every hour'], [360, 'Every 6 hours'], [720, 'Every 12 hours'],
+  [1440, 'Every day'], [10080, 'Every week'], ['custom', 'Custom...'],
+];
+function schedIntervalLabel(minutes) {
+  const m = parseInt(minutes);
+  if (isNaN(m)) return 'Custom';
+  const f = SCHED_INTERVALS.find(o => o[0] === m);
+  if (f) return f[1];
+  if (m < 60) return `Every ${m} min`;
+  if (m < 1440) return `Every ${(m / 60).toFixed(m % 60 ? 1 : 0)} hours`;
+  return `Every ${(m / 1440).toFixed(m % 1440 ? 1 : 0)} days`;
+}
+function schedNextLabel(nextRun) {
+  const t = parseFloat(nextRun);
+  if (!t) return 'on next tick';
+  const diff = Math.max(0, Math.round(t - Date.now() / 1000));
+  if (diff < 90) return 'due soon';
+  const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60);
+  if (h >= 24) return `in ${Math.floor(h / 24)}d ${h % 24}h`;
+  if (h > 0) return `in ${h}h ${m}m`;
+  return `in ${m}m`;
+}
+
+document.querySelectorAll('[data-sched-new-tab]').forEach(t => t.addEventListener('click', () => {
+  newSchedMode = t.dataset.mode;
+  document.querySelectorAll('[data-sched-new-tab]').forEach(b => b.classList.toggle('is-active', b.dataset.mode === newSchedMode));
+  const basic = document.querySelector('[data-sched-new-basic]');
+  const custom = document.querySelector('[data-sched-new-custom]');
+  if (basic) basic.style.display = newSchedMode === 'basic' ? '' : 'none';
+  if (custom) custom.style.display = newSchedMode === 'custom' ? '' : 'none';
+}));
+
+function renderSchedList() {
+  const el = document.getElementById('sched-list');
+  if (!schedMessages.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem;color:rgba(255,255,255,0.25);font-size:0.8rem;">No scheduled messages yet.</div>';
+    return;
+  }
+  el.innerHTML = schedMessages.map((m, i) => {
+    const chName = m.channel_id ? ('#' + (window.__CHANNEL_MAP?.[m.channel_id] || m.channel_id)) : '(none)';
+    const typeLabel = m.type === 'custom' ? 'Embed' : 'Text';
+    const preview = m.type === 'custom' ? (m.embed?.title || '(untitled embed)') : (m.message || '(empty)');
+    return `<div class="sticky-item">
+      <div class="sticky-item-head">
+        <div><span class="sticky-item-ch">${esc(chName)}</span> <span class="sticky-item-type">${typeLabel}</span> <span class="sticky-item-type">${esc(schedIntervalLabel(m.interval_minutes))} · ${esc(schedNextLabel(m.next_run))}</span></div>
+        <div style="display:flex;gap:0.3rem;">
+          <button class="md-action-btn danger" data-sched-del="${i}" style="padding:0.3rem 0.5rem;font-size:0.72rem;"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(preview)}</div>
+    </div>`;
+  }).join('');
+  lucide.createIcons();
+  el.querySelectorAll('[data-sched-del]').forEach(btn => btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.schedDel);
+    schedMessages.splice(idx, 1);
+    markChanged('scheduled_messages', schedMessages);
+    renderSchedList();
+  }));
+}
+
+function schedSelectedMinutes() {
+  const btn = document.querySelector('#new-sched-interval .md-custom-select-btn');
+  const v = btn?.dataset?.minutes;
+  if (v === 'custom') {
+    const n = parseInt(document.getElementById('new-sched-custom').value);
+    return isNaN(n) ? -1 : n;
+  }
+  return parseInt(v);
+}
+
+document.getElementById('add-sched-btn').addEventListener('click', () => {
+  const chBtn = document.querySelector('#new-sched-channel .md-custom-select-btn');
+  const chId = chBtn?.dataset?.id || '';
+  if (!chId) { if (typeof showToast === 'function') showToast('Select a channel first.', 'warning'); return; }
+  const minutes = schedSelectedMinutes();
+  if (isNaN(minutes) || minutes < 5 || minutes > 43200) {
+    if (typeof showToast === 'function') showToast('Interval must be 5 – 43200 minutes.', 'warning');
+    return;
+  }
+  const entry = { channel_id: chId, type: newSchedMode, interval_minutes: minutes };
+  if (newSchedMode === 'basic') {
+    const msg = document.getElementById('new-sched-message').value.trim();
+    if (!msg) { if (typeof showToast === 'function') showToast('Enter a message.', 'warning'); return; }
+    entry.message = msg;
+  } else {
+    if (!newSchedEmbed || !Object.keys(newSchedEmbed).length) {
+      if (typeof showToast === 'function') showToast('Save an embed first.', 'warning'); return;
+    }
+    entry.embed = { ...newSchedEmbed };
+  }
+  schedMessages.push(entry);
+  markChanged('scheduled_messages', schedMessages);
+  renderSchedList();
+  document.getElementById('new-sched-message').value = '';
+  newSchedEmbed = null;
+  chBtn.textContent = 'Select channel...';
+  delete chBtn.dataset.id;
+  if (typeof showToast === 'function') showToast('Scheduled message added.', 'success');
+});
+
+document.getElementById('new-sched-embed-btn').addEventListener('click', () => {
+  embedEditTarget = '__new_sched__';
+  loadEmbedEditor({});
+  document.getElementById('embed-editor-modal').classList.add('is-open');
+});
+
 // ── Dropdown init ──
 function initDropdown(wrap) {
   const btn = wrap.querySelector('.md-custom-select-btn');
@@ -375,11 +544,13 @@ async function saveChanges() {
   for (const key of keys) {
     try {
       const val = pending[key];
-      const body = key === 'sticky_messages' ? JSON.stringify({key, value: JSON.stringify(val)}) : JSON.stringify({key, value: val});
+      const isList = key === 'sticky_messages' || key === 'scheduled_messages';
+      const body = isList ? JSON.stringify({key, value: JSON.stringify(val)}) : JSON.stringify({key, value: val});
       await api('/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body});
     } catch {}
   }
   LOADED_STICKY = [...stickyMessages];
+  LOADED_SCHED = schedMessages.map(m => ({...m}));
   for (const key of Object.keys(pending)) delete pending[key];
   for (const key of Object.keys(original)) delete original[key];
   saveBar.classList.add('is-closed'); saveBtn.disabled = false; saveBtn.textContent = 'Save';
@@ -405,6 +576,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     initDropdown(newChWrap);
   }
 
+  const newSchedChWrap = document.getElementById('new-sched-channel');
+  if (newSchedChWrap) {
+    const btn = newSchedChWrap.querySelector('.md-custom-select-btn');
+    const drop = newSchedChWrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = channels.map(c => `<button class="md-custom-opt" data-id="${c.id}">#${esc(c.name)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = '#' + esc(b.textContent.replace('#',''));
+      btn.dataset.id = b.dataset.id;
+      drop.classList.remove('is-open');
+    }));
+    initDropdown(newSchedChWrap);
+  }
+
+  const schedIntWrap = document.getElementById('new-sched-interval');
+  if (schedIntWrap) {
+    const btn = schedIntWrap.querySelector('.md-custom-select-btn');
+    const drop = schedIntWrap.querySelector('.md-custom-select-drop');
+    drop.innerHTML = SCHED_INTERVALS.map(([m, label]) => `<button class="md-custom-opt" data-minutes="${m}">${esc(label)}</button>`).join('');
+    drop.querySelectorAll('.md-custom-opt').forEach(b => b.addEventListener('click', () => {
+      btn.textContent = b.textContent;
+      btn.dataset.minutes = b.dataset.minutes;
+      document.getElementById('new-sched-custom-wrap').style.display = b.dataset.minutes === 'custom' ? '' : 'none';
+      drop.classList.remove('is-open');
+    }));
+    initDropdown(schedIntWrap);
+  }
+
   api('/settings').then(d => {
     const s = d.settings || {};
     SETTINGS_SNAPSHOT = {...s};
@@ -420,6 +618,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     document.getElementById('sticky-config').classList.toggle('is-disabled', !s.sticky_enabled);
     renderStickyList();
+    schedMessages = Array.isArray(s.scheduled_messages) ? s.scheduled_messages.map(m => ({...m})) : [];
+    LOADED_SCHED = schedMessages.map(m => ({...m}));
+    const sen = document.getElementById('scheduled-enabled');
+    if (sen) {
+      sen.checked = !!s.scheduled_enabled;
+      sen.addEventListener('change', function(){
+        markChanged('scheduled_enabled', this.checked);
+        document.getElementById('scheduled-config').classList.toggle('is-disabled', !this.checked);
+      });
+    }
+    document.getElementById('scheduled-config').classList.toggle('is-disabled', !s.scheduled_enabled);
+    renderSchedList();
   }).catch(() => {});
 
   saveBtn.addEventListener('click', saveChanges);
@@ -427,10 +637,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const key of Object.keys(pending)) delete pending[key];
     for (const key of Object.keys(original)) delete original[key];
     stickyMessages = [...LOADED_STICKY];
+    schedMessages = LOADED_SCHED.map(m => ({...m}));
     const en = document.getElementById('sticky-enabled');
     if (en) en.checked = !!SETTINGS_SNAPSHOT.sticky_enabled;
     document.getElementById('sticky-config').classList.toggle('is-disabled', !SETTINGS_SNAPSHOT.sticky_enabled);
     renderStickyList();
+    const sen = document.getElementById('scheduled-enabled');
+    if (sen) sen.checked = !!SETTINGS_SNAPSHOT.scheduled_enabled;
+    document.getElementById('scheduled-config').classList.toggle('is-disabled', !SETTINGS_SNAPSHOT.scheduled_enabled);
+    renderSchedList();
     saveBar.classList.add('is-closed');
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();

@@ -288,10 +288,11 @@ def _styled_welcome_embed(member: discord.Member, settings: dict) -> discord.Emb
     msg = render_welcome(settings.get("welcome_message", ""), member)
     return (
         EmbedBuilder()
-        .title(emoji_title("welcome", "Welcome!"))
         .description(msg)
+        .header(emoji_title("welcome", "Welcome!"))
         .color("green")
         .thumbnail(member.display_avatar.url)
+        .divider()
         .row(
             ('Account Created', discord.utils.format_dt(member.created_at, style='R')),
             ('Member Count', f'{member.guild.member_count:,}')
@@ -313,10 +314,11 @@ def _styled_goodbye_embed(member: discord.Member, settings: dict) -> discord.Emb
     msg = render_welcome(settings.get("goodbye_message", ""), member)
     return (
         EmbedBuilder()
-        .title(emoji_title("goodbye", "Goodbye"))
         .description(msg)
+        .header(emoji_title("goodbye", "Goodbye"))
         .color("red")
         .thumbnail(member.display_avatar.url)
+        .divider()
         .field("Member Count", f"{member.guild.member_count:,}")
         .footer(f"User ID: {str(member.id)}")
         .timestamp(datetime.datetime.utcnow())

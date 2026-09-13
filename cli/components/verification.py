@@ -185,12 +185,13 @@ class Verification(commands.Cog, name="Verification"):
         embed = discord.Embed()
         if pe.get("title"):
             embed.title = pe["title"]
+            if pe.get("description"):
+                embed.description = pe["description"]
         else:
-            embed.title = emoji_title("verify", "Verification")
-        if pe.get("description"):
-            embed.description = pe["description"]
-        elif not pe.get("title") and not pe.get("description"):
-            embed.description = settings.get("message") or "Click the button below to verify yourself."
+            embed.description = (
+                f"## {emoji_title('verify', 'Verification')}\n"
+                f"{pe.get('description') or settings.get('message') or 'Click the button below to verify yourself.'}"
+            )
         color = pe.get("color")
         if color:
             try:

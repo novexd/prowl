@@ -645,6 +645,11 @@ def _get_default_avatar(user_id: int) -> Image.Image:
     return img
 
 
+LU_WIDTH = 900
+LU_HEIGHT = 360
+LU_AVATAR = 150
+
+
 async def create_level_up_card(
     user: discord.Member | discord.User,
     level: int,
@@ -654,78 +659,89 @@ async def create_level_up_card(
     guild_name: str = "Server",
     background: Optional[Image.Image] = None,
     primary_color: Tuple[int, int, int, int] = PRIMARY_COLOR,
-    accent_color: Tuple[int, int, int, int] = ACCENT_COLOR,
+    accent_color: Tuple[int, int, int, int] = WHITE,
 ) -> io.BytesIO:
-    """
-    Create a level up celebration card.
-    
+    """Create a level up celebration card.
+
+    Fixed (non-editable) layout matching the rank card aesthetic:
+    dark base with a brand glow, avatar + name + progress on the left,
+    giant level numeral on the right.
+
     Returns BytesIO ready for discord.File()
     """
-    img = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), DEFAULT_BG_COLOR)
+    img = Image.new("RGBA", (LU_WIDTH, LU_HEIGHT), DEFAULT_BG_COLOR)
+    glow = _gradient_image(
+        LU_WIDTH, LU_HEIGHT, "radial",
+        [PRIMARY_COLOR[:3] + (72,), PRIMARY_COLOR[:3] + (0,)],
+    )
+    img = Image.alpha_composite(img, glow)
     draw = ImageDraw.Draw(img)
-    
-    if background:
-        bg = background.resize((CARD_WIDTH, CARD_HEIGHT), Image.Resampling.LANCZOS)
-        if bg.mode == "RGBA":
-            img = Image.alpha_composite(img, bg)
-            draw = ImageDraw.Draw(img)
-        else:
-            img = bg.convert("RGBA")
-            draw = ImageDraw.Draw(img)
-    
+
     avatar_img = None
     if isinstance(user, (discord.Member, discord.User)):
-        avatar_img = await _fetch_avatar(user.display_avatar, AVATAR_SIZE)
+        avatar_img = await _fetch_avatar(user.display_avatar, 256)
     if avatar_img is None:
-        avatar_img = _get_default_avatar(user.id)
-    
-    mask = _create_avatar_mask(AVATAR_SIZE)
-    avatar_output = Image.new("RGBA", (AVATAR_SIZE, AVATAR_SIZE), (0, 0, 0, 0))
+        try:
+            uid = int(getattr(user, "id", 0))
+        except (TypeError, ValueError):
+            uid = 0
+        avatar_img = _get_default_avatar(uid)
+    if avatar_img.size != (LU_AVATAR, LU_AVATAR):
+        avatar_img = avatar_img.resize((LU_AVATAR, LU_AVATAR), Image.Resampling.LANCZOS)
+    mask = _create_avatar_mask(LU_AVATAR)
+    avatar_output = Image.new("RGBA", (LU_AVATAR, LU_AVATAR), (0, 0, 0, 0))
     avatar_output.paste(avatar_img, (0, 0), mask)
-    
-    avatar_x = CARD_WIDTH - AVATAR_SIZE - AVATAR_PADDING
-    avatar_y = (CARD_HEIGHT - AVATAR_SIZE) // 2
+
+    avatar_x, avatar_y = 48, (LU_HEIGHT - LU_AVATAR) // 2
     img.paste(avatar_output, (avatar_x, avatar_y), avatar_output)
-    
-    name_font = _load_font(36, bold=True)
-    level_font = _load_font(72, bold=True)
-    small_font = _load_font(24)
-    tiny_font = _load_font(18)
-    
-    text_x = AVATAR_PADDING
-    text_y = AVATAR_PADDING
-    
-    draw.text((text_x, text_y), "LEVEL UP!", font=name_font, fill=primary_color)
-    text_y += 44
-    
-    display_name = getattr(user, 'display_name', str(user))
-    name = display_name[:32]
-    draw.text((text_x, text_y), name, font=level_font, fill=accent_color)
-    text_y += 80
-    
-    lvl_text = f"LEVEL {level}"
-    draw.text((text_x, text_y), lvl_text, font=name_font, fill=primary_color)
-    
+    draw.ellipse(
+        (avatar_x - 4, avatar_y - 4, avatar_x + LU_AVATAR + 4, avatar_y + LU_AVATAR + 4),
+        outline=WHITE,
+        width=3,
+    )
+
+    eyebrow_font = _load_font(30, bold=True)
+    name_font = _load_font(44, bold=True)
+    small_font = _load_font(20)
+    tiny_font = _load_font(17)
+    giant_font = _load_font(150, bold=True)
+
+    text_x = avatar_x + LU_AVATAR + 32
+    # Reserve the right third for the giant numeral.
+    num_zone_x = 640
+    draw.text((text_x, 56), "LEVEL UP", font=eyebrow_font, fill=primary_color)
+
+    display_name = str(getattr(user, "display_name", "") or str(user))
+    max_name_width = num_zone_x - text_x - 16
+    name = _truncate_to_width(draw, display_name, name_font, max_name_width)
+    draw.text((text_x, 96), name, font=name_font, fill=accent_color)
+
     progress = (xp - xp_for_level(level)) / max(1, xp_for_level(level + 1) - xp_for_level(level)) if xp_needed > 0 else 0
-    bar_x = text_x
-    bar_y = text_y + 50
-    bar_width = CARD_WIDTH - AVATAR_SIZE - AVATAR_PADDING - 2 * AVATAR_PADDING
-    bar_height = 16
-    
+    bar_x, bar_y = text_x, 196
+    bar_width, bar_height = num_zone_x - text_x - 16, 16
     _draw_progress_bar(draw, bar_x, bar_y, bar_width, bar_height, progress, PROGRESS_BG, primary_color, 8)
-    
     draw.text(
-        (bar_x, bar_y + bar_height + 8),
-        f"{xp:,} XP • {xp_needed:,} XP to next level",
-        font=small_font, fill=MUTED_COLOR
+        (bar_x, bar_y + bar_height + 10),
+        f"{xp:,} XP  •  {xp_needed:,} XP to Level {level + 1}",
+        font=small_font, fill=MUTED_COLOR,
     )
-    
-    draw.text(
-        (text_x, CARD_HEIGHT - 40),
-        f"Server: {guild_name}",
-        font=tiny_font, fill=MUTED_COLOR
-    )
-    
+    draw.text((text_x, LU_HEIGHT - 44), f"Server: {guild_name}"[:48], font=tiny_font, fill=MUTED_COLOR)
+
+    # Giant level numeral, right-aligned in its zone.
+    num_text = str(level)
+    try:
+        num_w = draw.textlength(num_text, font=giant_font)
+    except Exception:
+        num_w = 0
+    num_x = LU_WIDTH - 48 - num_w
+    draw.text((num_x, 84), num_text, font=giant_font, fill=accent_color)
+    try:
+        label = "LEVEL"
+        label_w = draw.textlength(label, font=eyebrow_font)
+    except Exception:
+        label_w = 0
+    draw.text((LU_WIDTH - 48 - label_w, 64), label, font=eyebrow_font, fill=primary_color)
+
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
