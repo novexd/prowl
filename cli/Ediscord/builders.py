@@ -298,8 +298,10 @@ def emoji_title(key: str, text: str) -> str:
 
 # Discord renders `## ` as a big header inside embed descriptions and field
 # values (not in titles). DIVIDER_LINE fakes the horizontal rules other bots
-# use between sections (embeds have no border/outline primitive).
-DIVIDER_LINE = "─" * 16
+# use between sections (embeds have no border/outline primitive). U+2501
+# (heavy horizontal) is used over U+2500 (light) because the light joins show
+# visible seams in most fonts, making it look like spaced underscores.
+DIVIDER_LINE = "━" * 16
 
 
 def header_md(text: str) -> str:
