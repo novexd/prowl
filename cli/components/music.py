@@ -50,6 +50,10 @@ async def get_music_settings(guild_id: int):
     return await neon_db.load_cached_settings("music_settings", guild_id, MUSIC_DEFAULTS)
 
 
+async def save_music_settings(guild_id: int, settings: dict):
+    await neon_db.save_cached_settings("music_settings", guild_id, settings)
+
+
 URL_REGEX = re.compile(r"https?://(?:www\.)?.+")
 
 
@@ -419,6 +423,24 @@ class Music(commands.Cog, name="Music"):
             return True
 
     music_group = MusicGroup(name="music", description="Music playback commands")
+
+    @app_commands.command(name="music-toggle", description="Enable or disable music for this server (admin only)")
+    @app_commands.describe(enabled="True to enable music, False to disable it")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def music_toggle(self, interaction: discord.Interaction, enabled: bool):
+        if not interaction.guild:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().description("Music commands can only be used inside a server.").header(emoji_title("error", "Server Only")).color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True,
+            )
+        settings = await get_music_settings(interaction.guild_id)
+        settings["enabled"] = bool(enabled)
+        await save_music_settings(interaction.guild_id, settings)
+        state = "enabled" if enabled else "disabled"
+        await interaction.response.send_message(
+            embed=EmbedBuilder().description(f"Music is now **{state}** in this server.").header(emoji_title("music", "Music Toggled")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
+            ephemeral=True,
+        )
 
     @music_group.command(name="play", description="Play a song from a URL or search query")
     @app_commands.describe(query="Song URL or search term")
