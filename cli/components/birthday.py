@@ -65,8 +65,7 @@ class Birthday(commands.Cog, name="Birthday"):
         except ValueError:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("error", "Invalid Date"))
-                .description(f"{MONTH_NAMES[month]} {day} is not a valid date.")
+                .description(f"{MONTH_NAMES[month]} {day} is not a valid date.").header(emoji_title("error", "Invalid Date"))
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -77,8 +76,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not pool:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("error", "Error"))
-                .description("Database unavailable.")
+                .description("Database unavailable.").header(emoji_title("error", "Error"))
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -113,8 +111,7 @@ class Birthday(commands.Cog, name="Birthday"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("cake", "Birthday Set"))
-            .description(f"Birthday set to **{MONTH_NAMES[month]} {day}**{age_str}!")
+            .description(f"Birthday set to **{MONTH_NAMES[month]} {day}**{age_str}!").header(emoji_title("cake", "Birthday Set"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -130,8 +127,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not pool:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("error", "Error"))
-                .description("Database unavailable.")
+                .description("Database unavailable.").header(emoji_title("error", "Error"))
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -146,8 +142,7 @@ class Birthday(commands.Cog, name="Birthday"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("check", "Birthday Removed"))
-            .description("Your birthday has been removed.")
+            .description("Your birthday has been removed.").header(emoji_title("check", "Birthday Removed"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -163,8 +158,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not pool:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("error", "Error"))
-                .description("Database unavailable.")
+                .description("Database unavailable.").header(emoji_title("error", "Error"))
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -179,8 +173,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not rows:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("info", "No Birthdays"))
-                .description("No birthdays set in this server.")
+                .description("No birthdays set in this server.").header(emoji_title("info", "No Birthdays"))
                 .color("blue")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -207,8 +200,7 @@ class Birthday(commands.Cog, name="Birthday"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("cake", f"Birthdays ({len(rows)} total)"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("cake", f"Birthdays ({len(rows)} total)"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -224,8 +216,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not pool:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("error", "Error"))
-                .description("Database unavailable.")
+                .description("Database unavailable.").header(emoji_title("error", "Error"))
                 .color("red")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -240,8 +231,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not rows:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("info", "No Upcoming"))
-                .description("No birthdays set in this server.")
+                .description("No birthdays set in this server.").header(emoji_title("info", "No Upcoming"))
                 .color("blue")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -278,8 +268,7 @@ class Birthday(commands.Cog, name="Birthday"):
         if not upcoming:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("info", "No Upcoming"))
-                .description("No birthdays in the next 7 days.")
+                .description("No birthdays in the next 7 days.").header(emoji_title("info", "No Upcoming"))
                 .color("blue")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -298,8 +287,7 @@ class Birthday(commands.Cog, name="Birthday"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("cake", "Upcoming Birthdays"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("cake", "Upcoming Birthdays"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -405,8 +393,7 @@ class Birthday(commands.Cog, name="Birthday"):
                         message = message.replace(k, v)
                     embed = (
                         EmbedBuilder()
-                        .title(emoji_title("cake", f"Happy Birthday, {member.display_name}!"))
-                        .description(message)
+                        .description(message).header(emoji_title("cake", f"Happy Birthday, {member.display_name}!"))
                         .color("brand")
                         .thumbnail(str(member.display_avatar.url))
                         .timestamp(datetime.datetime.utcnow())

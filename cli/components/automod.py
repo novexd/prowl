@@ -114,16 +114,15 @@ class AutoMod(commands.Cog, name="AutoMod"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("shield", f"AutoMod: {filter_name}"))
             .color("gray")
-            .row(
+            .divider().row(
                 ('User', f'{message.author.mention} (`{message.author.id}`)'),
                 ('Channel', message.channel.mention),
                 ('Reason', reason),
                 ('Action', action)
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("shield", f"AutoMod: {filter_name}")).build()
         )
         try:
             await channel.send(embed=embed)
@@ -160,8 +159,9 @@ class AutoMod(commands.Cog, name="AutoMod"):
         """Create a default styled embed for automod DMs."""
         return (
             EmbedBuilder()
-            .title(f"{EMBED_EMOJIS.get('shield', '')} AutoMod - {filter_name}")
             .description(reason)
+            .header(f"{EMBED_EMOJIS.get('shield', '')} AutoMod - {filter_name}")
+            .divider()
             .field("Server", guild.name, inline=True)
             .color("warn")
             .footer("AutoMod | Prowl")

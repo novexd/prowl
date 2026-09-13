@@ -196,12 +196,12 @@ class TempChannels(commands.Cog, name="Temp Channels"):
         settings = await get_temp_settings(interaction.guild_id)
         if not settings.get("enabled", True):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Disabled")).description("Temp channels are disabled. Ask an admin to enable it.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Temp channels are disabled. Ask an admin to enable it.").header(emoji_title("error", "Disabled")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         if not settings.get("tempchat_enabled"):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Disabled")).description("Temp chat is disabled. Ask an admin to enable it.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Temp chat is disabled. Ask an admin to enable it.").header(emoji_title("error", "Disabled")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -216,7 +216,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
         )
         if len(existing) >= 3:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Limit Reached")).description("You can have up to 3 temp channels at once.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You can have up to 3 temp channels at once.").header(emoji_title("error", "Limit Reached")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -259,8 +259,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
             # Send welcome message
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("chat", "Temporary Channel"))
-                .description(f"This channel will auto-delete in **{minutes} minutes**.\nYou can manage it with the buttons below.")
+                .description(f"This channel will auto-delete in **{minutes} minutes**.\nYou can manage it with the buttons below.").header(emoji_title("chat", "Temporary Channel"))
                 .color("blue")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -271,14 +270,14 @@ class TempChannels(commands.Cog, name="Temp Channels"):
             self.bot.loop.create_task(self._expire_tempchat(ch.id, interaction.guild_id, minutes * 60))
 
             await interaction.followup.send(
-                embed=EmbedBuilder().title(emoji_title("check", "Created")).description(f"Created {ch.mention} (expires in {minutes} min)").color("green").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Created {ch.mention} (expires in {minutes} min)").header(emoji_title("check", "Created")).color("green").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
         except Exception as e:
             logger.warning(f"Failed to create temp chat: {e}")
             await interaction.followup.send(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description(f"Could not create channel: {str(e)[:100]}").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Could not create channel: {str(e)[:100]}").header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -328,7 +327,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
         )
         if not row:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Found")).description("You don't own any temp channels.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You don't own any temp channels.").header(emoji_title("error", "Not Found")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -345,7 +344,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
         )
 
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("check", "Closed")).description("Channel deleted.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description("Channel deleted.").header(emoji_title("check", "Closed")).color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True,
         )
 
@@ -365,7 +364,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
 
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("info", "No Temp Channels")).description("You don't own any temp channels.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You don't own any temp channels.").header(emoji_title("info", "No Temp Channels")).color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -386,8 +385,7 @@ class TempChannels(commands.Cog, name="Temp Channels"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("chat", "Your Temp Channels"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("chat", "Your Temp Channels"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()

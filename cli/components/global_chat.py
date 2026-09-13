@@ -244,8 +244,6 @@ def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
         servers_str += f" +{len(blocked_servers) - 10} more"
     embed = (
         EmbedBuilder()
-        .title(emoji_title("global_chat" if enabled and not muted else "mute" if muted else "globe", "Global Chat Control Panel"))
-        .color("blue" if enabled and not muted else "orange" if muted else "gray")
         .description(
             f"Use the buttons below to manage global chat.\n\n"
             f"**STATUS**: {status}\n"
@@ -255,6 +253,8 @@ def _build_panel_embed(guild: discord.Guild, enabled: bool, muted: bool,
             f"Blocked Users: {users_str}\n"
             f"Blocked Servers: {servers_str}"
         )
+        .header(emoji_title("global_chat" if enabled and not muted else "mute" if muted else "globe", "Global Chat Control Panel"))
+        .color("blue" if enabled and not muted else "orange" if muted else "gray")
         .timestamp(datetime.datetime.utcnow())
         .build()
     )
@@ -270,14 +270,14 @@ def _build_hub_panel_embed(hubs: dict, current_hub: str):
     current_str = f"**{current_hub}**" if current_hub else "**None** — join a hub below"
     embed = (
         EmbedBuilder()
-        .title(emoji_title("global_chat", "Hub Control Panel"))
-        .color("blue")
         .description(
             f"Join a hub to connect with other servers.\n"
             f"Each hub supports up to **{HUB_LIMIT}** servers.\n\n"
             + "\n".join(lines) +
             f"\n\n**Your Hub:** {current_str}"
         )
+        .header(emoji_title("global_chat", "Hub Control Panel"))
+        .color("blue")
         .timestamp(datetime.datetime.utcnow())
         .build()
     )
@@ -314,7 +314,7 @@ class GCControlView(discord.ui.View):
         hub = await _get_hub(interaction.guild_id)
         if not hub:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Hub Required")).description("You must join a hub before enabling global chat.").color("red").build(),
+                embed=EmbedBuilder().description("You must join a hub before enabling global chat.").header(emoji_title("error", "Hub Required")).color("red").build(),
                 ephemeral=True
             )
         current = await _get_bool(interaction.guild_id, "gc_enabled")
@@ -340,9 +340,8 @@ class GCControlView(discord.ui.View):
                     try:
                         await ch.send(
                             embed=EmbedBuilder()
-                            .title(emoji_title("mute", "Global Chat Muted"))
-                            .description(f"{EMBED_EMOJIS['mute']} This server has been **muted** by admins.\nMessages will not be relayed to other servers.")
-                            .color("red")
+                            .description(f"This server has been **muted** by admins.\nMessages will not be relayed to other servers.").header(emoji_title("mute", "Global Chat Muted"))
+                            .color("orange")
                             .timestamp(datetime.datetime.utcnow())
                             .build()
                         )
@@ -735,22 +734,21 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
     async def link(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         hub = await _get_hub(interaction.guild.id)
         if not hub:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Hub Required")).description("You must join a hub first. Use the control panel to join one.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You must join a hub first. Use the control panel to join one.").header(emoji_title("error", "Hub Required")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.set_linked_channel(interaction.guild.id, str(interaction.channel_id))
         embed = (
             EmbedBuilder()
-            .title(emoji_title("global_chat", "Global Chat Linked"))
-            .description(f"This channel ({interaction.channel.mention}) is now linked to the global chat!")
+            .description(f"This channel ({interaction.channel.mention}) is now linked to the global chat!").header(emoji_title("global_chat", "Global Chat Linked"))
             .color("blue")
-            .field("Channel ID", str(interaction.channel_id))
+            .divider().field("Channel ID", str(interaction.channel_id))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -760,12 +758,12 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
     async def unlink(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.set_linked_channel(interaction.guild.id, "0")
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Global Chat Unlinked")).description("This channel has been unlinked from global chat.").color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description("This channel has been unlinked from global chat.").header(emoji_title("success", "Global Chat Unlinked")).color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -777,10 +775,9 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
             channel = self.bot.get_channel(int(hub_channel_id))
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("global_chat", "Global Chat Status"))
-                .description(f"Global chat is linked to {channel.mention if channel else f'<#{hub_channel_id}>'}")
+                .description(f"Global chat is linked to {channel.mention if channel else f'<#{hub_channel_id}>'}").header(emoji_title("global_chat", "Global Chat Status"))
                 .color("blue")
-                .field("Channel ID", str(hub_channel_id))
+                .divider().field("Channel ID", str(hub_channel_id))
                 .field("Hub", hub or "None")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -788,8 +785,7 @@ class GlobalChat(commands.Cog, name="GlobalChat"):
         else:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("globe", "Global Chat Status"))
-                .description("Global chat is not set up yet.")
+                .description("Global chat is not set up yet.").header(emoji_title("globe", "Global Chat Status"))
                 .color("gray")
                 .timestamp(datetime.datetime.utcnow())
                 .build()

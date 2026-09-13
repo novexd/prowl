@@ -32,13 +32,13 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Database unavailable.").header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
         if role.position >= interaction.guild.me.top_role.position:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Role Too High")).description("I can't assign a role equal to or higher than my top role.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("I can't assign a role equal to or higher than my top role.").header(emoji_title("error", "Role Too High")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -56,8 +56,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("check", "Activity Role Added"))
-            .description(f"Playing **{activity}** will now assign {role.mention}.")
+            .description(f"Playing **{activity}** will now assign {role.mention}.").header(emoji_title("check", "Activity Role Added"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -74,7 +73,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Database unavailable.").header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -86,8 +85,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("check", "Removed"))
-            .description(f"Activity role for **{activity}** removed.")
+            .description(f"Activity role for **{activity}** removed.").header(emoji_title("check", "Removed"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -102,7 +100,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
         pool = await neon_db.get_pool()
         if not pool:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Error")).description("Database unavailable.").color("red").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Database unavailable.").header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -113,7 +111,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
 
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("info", "No Activity Roles")).description("No activity roles configured. Use `/activityrole add` to create one.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("No activity roles configured. Use `/activityrole add` to create one.").header(emoji_title("info", "No Activity Roles")).color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
 
@@ -126,8 +124,7 @@ class ActivityRoles(commands.Cog, name="Activity Roles"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("game", f"Activity Roles ({len(rows)})"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("game", f"Activity Roles ({len(rows)})"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()

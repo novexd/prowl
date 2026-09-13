@@ -105,10 +105,9 @@ class Utilities(commands.Cog):
                 result_file = discord.File(out, filename=f"converted.{fmt}", spoiler=False)
                 embed = (
                     EmbedBuilder()
-                    .title(emoji_title("sparkle", "Image Converted"))
-                    .description(f"`{filename}` → `converted.{fmt}`")
+                    .description(f"`{filename}` → `converted.{fmt}`").header(emoji_title("sparkle", "Image Converted"))
                     .color("pink")
-                    .row(("Size", f"{len(out.getvalue()) / 1024:.1f} KB"), ("Format", fmt.upper()))
+                    .divider().row(("Size", f"{len(out.getvalue()) / 1024:.1f} KB"), ("Format", fmt.upper()))
                     .build()
                 )
                 await interaction.followup.send(embed=embed, file=result_file, ephemeral=True)
@@ -162,10 +161,9 @@ class Utilities(commands.Cog):
                     result_file = discord.File(io.BytesIO(out_data), filename=f"converted.{fmt}")
                     embed = (
                         EmbedBuilder()
-                        .title(emoji_title("music", "Audio Converted"))
-                        .description(f"`{filename}` → `converted.{fmt}`")
+                        .description(f"`{filename}` → `converted.{fmt}`").header(emoji_title("music", "Audio Converted"))
                         .color("pink")
-                        .row(("Size", f"{len(out_data) / 1024:.1f} KB"), ("Format", fmt.upper()))
+                        .divider().row(("Size", f"{len(out_data) / 1024:.1f} KB"), ("Format", fmt.upper()))
                         .build()
                     )
                     await interaction.followup.send(embed=embed, file=result_file, ephemeral=True)
@@ -209,10 +207,9 @@ class Utilities(commands.Cog):
             result_file = discord.File(out, filename=f"resized.{ext}")
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("sparkle", "Image Resized"))
-                .description(f"`{orig_w}×{orig_h}` → `{width}×{height}`")
+                .description(f"`{orig_w}×{orig_h}` → `{width}×{height}`").header(emoji_title("sparkle", "Image Resized"))
                 .color("pink")
-                .row(("Original", f"{orig_w}×{orig_h}"), ("New", f"{width}×{height}"))
+                .divider().row(("Original", f"{orig_w}×{orig_h}"), ("New", f"{width}×{height}"))
                 .build()
             )
             await interaction.followup.send(embed=embed, file=result_file, ephemeral=True)
@@ -273,10 +270,9 @@ class Utilities(commands.Cog):
             result_file = discord.File(out, filename=f"compressed.{ext}")
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("check", "Image Compressed"))
-                .description(f"Reduced by **{pct:.1f}%**")
+                .description(f"Reduced by **{pct:.1f}%**").header(emoji_title("check", "Image Compressed"))
                 .color("green")
-                .row(("Original", f"{orig_size / 1024:.1f} KB"), ("Compressed", f"{new_size / 1024:.1f} KB"))
+                .divider().row(("Original", f"{orig_size / 1024:.1f} KB"), ("Compressed", f"{new_size / 1024:.1f} KB"))
                 .build()
             )
             await interaction.followup.send(embed=embed, file=result_file, ephemeral=True)
@@ -361,10 +357,9 @@ class Utilities(commands.Cog):
             file_names = ", ".join(f"`{f.filename}`" for f in files[:5])
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("package", "Zip Created"))
-                .description(f"**Files:** {file_names}\n**Expires:** 24 hours")
+                .description(f"**Files:** {file_names}\n**Expires:** 24 hours").header(emoji_title("package", "Zip Created"))
                 .color("brand")
-                .row(
+                .divider().row(
                     ("Size", f"{len(zip_data) / 1024:.1f} KB"),
                     ("Files", str(len(files))),
                     ("Encrypted", "Yes" if password else "No"),

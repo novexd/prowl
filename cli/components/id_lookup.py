@@ -31,8 +31,7 @@ class IdLookup(commands.Cog, name="ID"):
         if not any([member, role, channel, emoji]):
             return await interaction.response.send_message(
                 embed=EmbedBuilder()
-                .title(emoji_title("error", "Nothing Provided"))
-                .description("Pass at least one target: a member, role, channel, or emoji.")
+                .description("Pass at least one target: a member, role, channel, or emoji.").header(emoji_title("error", "Nothing Provided"))
                 .color("error")
                 .timestamp(datetime.datetime.utcnow())
                 .build(),
@@ -63,8 +62,9 @@ class IdLookup(commands.Cog, name="ID"):
 
         embed = (
             EmbedBuilder()
-                .title(emoji_title("tag", "ID Lookup"))
+                .header(emoji_title("tag", "ID Lookup"))
             .color("gray")
+            .divider()
             .timestamp(datetime.datetime.utcnow())
         )
         for name, value, inline in fields:

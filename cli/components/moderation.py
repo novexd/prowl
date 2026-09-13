@@ -104,16 +104,16 @@ def render_embed_data(data: dict, member: discord.Member, reason: str = "", msg_
 
 
 def _info_embed(title: str, description: str, color: str = "blue", ephemeral_view: bool = True) -> discord.Embed:
-    eb = EmbedBuilder().title(title).description(description).color(color).timestamp(datetime.datetime.utcnow())
+    eb = EmbedBuilder().description(description).header(title).color(color).timestamp(datetime.datetime.utcnow())
     return eb.build()
 
 
 def _error_embed(description: str) -> discord.Embed:
-    return EmbedBuilder().title(emoji_title("error", "Error")).description(description).color("red").timestamp(datetime.datetime.utcnow()).build()
+    return EmbedBuilder().description(description).header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build()
 
 
 def _confirmation_embed(description: str) -> discord.Embed:
-    return EmbedBuilder().title(emoji_title("warning", "Confirm Action")).description(description).color("orange").timestamp(datetime.datetime.utcnow()).build()
+    return EmbedBuilder().description(description).header(emoji_title("warning", "Confirm Action")).color("orange").timestamp(datetime.datetime.utcnow()).build()
 
 
 async def send_modlog(guild, settings, embed):
@@ -458,7 +458,7 @@ class Moderation(commands.Cog, name="Moderation"):
         return True
 
     def _user_dm_embed(self, title: str, description: str, color: str = "red") -> discord.Embed:
-        return EmbedBuilder().title(title).description(description).color(color).timestamp(datetime.datetime.utcnow()).footer("Server Moderation").build()
+        return EmbedBuilder().description(description).header(title).color(color).timestamp(datetime.datetime.utcnow()).footer("Server Moderation").build()
 
     @app_commands.command(name="kick", description="Kick a member from the server")
     @app_commands.describe(member="The member to kick", reason="Reason for the kick (optional)")
@@ -493,10 +493,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "kick", "👢 Member Kicked", "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title(emoji_title("kick", "Member Kicked"))
-                .description(f"{member.mention} (`{member.id}`)")
+                EmbedBuilder()
+                .description(f"{member.mention} (`{member.id}`)").header(emoji_title("kick", "Member Kicked"))
                 .color("red")
-                .row(
+                .divider().row(
                     ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                     ('Reason', reason)
                 )
@@ -506,7 +506,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "kick", reason, interaction.user.name)
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Kick cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().description("Kick cancelled.").header(emoji_title("info", "Cancelled")).color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @app_commands.command(name="ban", description="Ban a member from the server")
     @app_commands.describe(member="The member to ban", reason="Reason for the ban (optional)", delete_days="Days of messages to delete (0-7)")
@@ -545,10 +545,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "ban", emoji_title("ban", "Member Banned"), "red", member, reason)
 
             log_embed = (
-                EmbedBuilder().title(emoji_title("ban", "Member Banned"))
-                .description(f"{member.mention} (`{member.id}`)")
+                EmbedBuilder()
+                .description(f"{member.mention} (`{member.id}`)").header(emoji_title("ban", "Member Banned"))
                 .color("red")
-                .row(
+                .divider().row(
                     ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                     ('Reason', reason),
                     ('Delete Days', str(delete_days))
@@ -559,7 +559,7 @@ class Moderation(commands.Cog, name="Moderation"):
             await send_modlog(interaction.guild, settings, log_embed)
             await log_mod_action(interaction.guild_id, str(member.id), member.name, "ban", reason, interaction.user.name)
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().description("Ban cancelled.").header(emoji_title("info", "Cancelled")).color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @app_commands.command(name="tempban", description="Temporarily ban a member (auto-unbans after duration)")
     @app_commands.describe(member="The member to temporarily ban", duration="Duration in minutes", reason="Reason for the temp ban (optional)")
@@ -600,10 +600,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await self.send_confirm(interaction, settings, "tempban", "⏳ Member Temp-Banned", "red", member, reason, format_duration(duration))
 
             log_embed = (
-                EmbedBuilder().title(emoji_title("tempban", "Member Temp-Banned"))
-                .description(f"{member.mention} (`{member.id}`)")
+                EmbedBuilder()
+                .description(f"{member.mention} (`{member.id}`)").header(emoji_title("tempban", "Member Temp-Banned"))
                 .color("red")
-                .row(
+                .divider().row(
                     ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                     ('Duration', f'{duration} minutes ({format_duration(duration)})'),
                     ('Reason', reason)
@@ -616,7 +616,7 @@ class Moderation(commands.Cog, name="Moderation"):
 
             self.bot.loop.create_task(self._auto_unban(interaction.guild_id, member.id, duration, reason))
         else:
-            await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Temp ban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.followup.send(embed=EmbedBuilder().description("Temp ban cancelled.").header(emoji_title("info", "Cancelled")).color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     async def _auto_unban(self, guild_id, user_id, duration_minutes, original_reason: str = ""):
         await asyncio.sleep(duration_minutes * 60)
@@ -657,7 +657,7 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         await view.wait()
         if view.value is not True:
-            return await interaction.followup.send(embed=EmbedBuilder().title(emoji_title("info", "Cancelled")).description("Unban cancelled.").color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            return await interaction.followup.send(embed=EmbedBuilder().description("Unban cancelled.").header(emoji_title("info", "Cancelled")).color("grey").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         try:
             user = await self.bot.fetch_user(target_id)
@@ -672,10 +672,10 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.followup.send(embed=_error_embed("An unexpected error occurred while unbanning."), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
-            .description(f"{user.mention} has been unbanned.")
+            EmbedBuilder()
+            .description(f"{user.mention} has been unbanned.").header(emoji_title("unban", "User Unbanned"))
             .color("green")
-            .row(
+            .divider().row(
                 ('Reason', reason),
                 ('Moderator', interaction.user.mention)
             )
@@ -688,10 +688,10 @@ class Moderation(commands.Cog, name="Moderation"):
         await interaction.channel.send(embed=embed)
 
         log_embed = (
-            EmbedBuilder().title(emoji_title("unban", "User Unbanned"))
-            .description(f"{user.mention} (`{user.id}`)")
+            EmbedBuilder()
+            .description(f"{user.mention} (`{user.id}`)").header(emoji_title("unban", "User Unbanned"))
             .color("green")
-            .row(
+            .divider().row(
                 ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                 ('Reason', reason)
             )
@@ -743,7 +743,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     msg = f"{member.mention} has been timed out."
                 await interaction.response.send_message(embed=basic_action_embed("mute", msg, "orange"))
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Muted")).description("Done.").color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description("Done.").header(emoji_title("success", "Member Muted")).color("orange").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -754,10 +754,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title(emoji_title("mute", "Member Muted"))
-            .description(f"{member.mention} (`{member.id}`)")
+            EmbedBuilder()
+            .description(f"{member.mention} (`{member.id}`)").header(emoji_title("mute", "Member Muted"))
             .color("orange")
-            .row(
+            .divider().row(
                 ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                 ('Duration', f'{duration} minutes ({format_duration(duration)})'),
                 ('Reason', reason)
@@ -796,10 +796,10 @@ class Moderation(commands.Cog, name="Moderation"):
 
         if not settings.get("silent_mod"):
             embed = (
-                EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
-                .description(f"{member.mention}'s mute has been removed.")
+                EmbedBuilder()
+                .description(f"{member.mention}'s mute has been removed.").header(emoji_title("unmute", "Member Unmuted"))
                 .color("green")
-                .row(
+                .divider().row(
                     ('Reason', reason),
                     ('Moderator', interaction.user.mention)
                 )
@@ -808,7 +808,7 @@ class Moderation(commands.Cog, name="Moderation"):
             )
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Unmuted")).description("Done.").color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description("Done.").header(emoji_title("success", "Member Unmuted")).color("green").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("mute_dm", True):
             dm_embed = self._user_dm_embed(
@@ -819,10 +819,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title(emoji_title("unmute", "Member Unmuted"))
-            .description(f"{member.mention} (`{member.id}`)")
+            EmbedBuilder()
+            .description(f"{member.mention} (`{member.id}`)").header(emoji_title("unmute", "Member Unmuted"))
             .color("green")
-            .row(
+            .divider().row(
                 ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                 ('Reason', reason)
             )
@@ -858,7 +858,7 @@ class Moderation(commands.Cog, name="Moderation"):
                     msg = f"{member.mention} has been warned."
                 await interaction.response.send_message(embed=basic_action_embed("warn", msg, "yellow"))
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("success", "Member Warned")).description("Done.").color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description("Done.").header(emoji_title("success", "Member Warned")).color("yellow").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
         if settings.get("dm_on_action", True) and settings.get("warn_dm", True):
             dm_embed = self._user_dm_embed(
@@ -869,10 +869,10 @@ class Moderation(commands.Cog, name="Moderation"):
             await safe_dm(member, embed=dm_embed)
 
         log_embed = (
-            EmbedBuilder().title(emoji_title("warn", "Member Warned"))
-            .description(f"{member.mention} (`{member.id}`)")
+            EmbedBuilder()
+            .description(f"{member.mention} (`{member.id}`)").header(emoji_title("warn", "Member Warned"))
             .color("yellow")
-            .row(
+            .divider().row(
                 ('Moderator', f'{interaction.user.mention} (`{interaction.user.id}`)'),
                 ('Reason', reason)
             )
@@ -908,10 +908,10 @@ class Moderation(commands.Cog, name="Moderation"):
             return await interaction.followup.send(embed=_error_embed(f"Failed to purge: {e}"), ephemeral=True)
 
         embed = (
-            EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
-            .description(f"Deleted {len(deleted)} messages." + (f" from {member.mention}" if member else ""))
+            EmbedBuilder()
+            .description(f"Deleted {len(deleted)} messages." + (f" from {member.mention}" if member else "")).header(emoji_title("purge", "Messages Purged"))
             .color("blue")
-            .row(
+            .divider().row(
                 ('Channel', interaction.channel.mention),
                 ('Moderator', interaction.user.mention)
             )
@@ -925,10 +925,10 @@ class Moderation(commands.Cog, name="Moderation"):
             pass
 
         log_embed = (
-            EmbedBuilder().title(emoji_title("purge", "Messages Purged"))
-            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)" + (f" from {member.mention}" if member else ""))
+            EmbedBuilder()
+            .description(f"Deleted **{len(deleted)}** messages in {interaction.channel.mention} (`{str(interaction.channel.id)}`)" + (f" from {member.mention}" if member else "")).header(emoji_title("purge", "Messages Purged"))
             .color("blue")
-            .row(
+            .divider().row(
                 ('Moderator', f'{interaction.user.mention} (`{str(interaction.user.id)}`)'),
                 ('Requested', str(count))
             )
@@ -955,7 +955,7 @@ class Moderation(commands.Cog, name="Moderation"):
         status = "enabled" if enabled else "disabled"
         color = "green" if enabled else "red"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("shield", "Mute Evasion Updated")).description(f"Mute evasion detection **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description(f"Mute evasion detection **{status}**.").header(emoji_title("shield", "Mute Evasion Updated")).color(color).timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -969,9 +969,8 @@ class Moderation(commands.Cog, name="Moderation"):
         mod_roles = settings.get("mod_roles", []) or []
         embed = (
             EmbedBuilder()
-            .title(emoji_title("info", "Moderation Settings"))
             .color("blue")
-            .field("General", "\u200b", inline=False)
+            .divider().field("General", "\u200b", inline=False)
             .row(
                 ('DM on Action', b(settings.get('dm_on_action'))),
                 ('Require Reason', b(settings.get('require_reason'))),
@@ -1002,7 +1001,7 @@ class Moderation(commands.Cog, name="Moderation"):
                 ('Mute Evasion', b(settings.get('mute_evasion')))
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("info", "Moderation Settings")).build()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -1021,10 +1020,10 @@ class Moderation(commands.Cog, name="Moderation"):
             title = emoji_title("warning", "Lockdown Failed")
             color = "grey"
         embed = (
-            EmbedBuilder().title(title)
-            .description(detail or f"Server is now in **{status}** mode.")
+            EmbedBuilder()
+            .description(detail or f"Server is now in **{status}** mode.").header(title)
             .color(color)
-            .field("Moderator", interaction.user.mention)
+            .divider().field("Moderator", interaction.user.mention)
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -1041,10 +1040,10 @@ class Moderation(commands.Cog, name="Moderation"):
             interaction.user.name,
         )
         log_embed = (
-            EmbedBuilder().title(title)
-            .description(detail or f"Server is now in **{status}** mode.")
+            EmbedBuilder()
+            .description(detail or f"Server is now in **{status}** mode.").header(title)
             .color(color)
-            .field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
+            .divider().field("Moderator", f"{interaction.user.mention} (`{interaction.user.id}`)")
             .timestamp(datetime.datetime.utcnow())
             .build()
         )

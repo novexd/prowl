@@ -80,7 +80,7 @@ class MusicPlayer(discord.ui.View):
     async def pause_resume(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Connected")).description("Not connected to a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if interaction.guild.voice_client.is_paused():
@@ -95,7 +95,7 @@ class MusicPlayer(discord.ui.View):
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Connected")).description("Not connected to a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         q = self.cog.queues.get(interaction.guild_id)
@@ -108,8 +108,7 @@ class MusicPlayer(discord.ui.View):
             pass
         embed = (
             EmbedBuilder()
-            .title(emoji_title("music", "Stopped"))
-            .description("Playback stopped and disconnected.")
+            .description("Playback stopped and disconnected.").header(emoji_title("music", "Stopped"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -121,13 +120,13 @@ class MusicPlayer(discord.ui.View):
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild.voice_client:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Connected")).description("Not connected to a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         interaction.guild.voice_client.stop()
         await self.cog.play_next(interaction.guild)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Skipped")).description("Skipped to next track.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description("Skipped to next track.").header(emoji_title("music", "Skipped")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -137,12 +136,12 @@ class MusicPlayer(discord.ui.View):
         if q and len(q) > 0:
             q.shuffle()
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("music", "Shuffled")).description(f"Queue shuffled ({len(q)} tracks).").color("brand").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Queue shuffled ({len(q)} tracks).").header(emoji_title("music", "Shuffled")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -153,12 +152,12 @@ class MusicPlayer(discord.ui.View):
             q.loop = not q.loop
             status = "enabled" if q.loop else "disabled"
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("music", "Loop")).description(f"Loop **{status}**.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Loop **{status}**.").header(emoji_title("music", "Loop")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -215,14 +214,14 @@ class Music(commands.Cog, name="Music"):
     async def ensure_voice(self, interaction: discord.Interaction) -> bool:
         if not interaction.user.voice or not interaction.user.voice.channel:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not in Voice")).description("You must be in a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You must be in a voice channel.").header(emoji_title("error", "Not in Voice")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
             return False
         voice = interaction.guild.voice_client
         if voice and voice.channel.id != interaction.user.voice.channel.id:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Already Connected")).description("I'm already in another voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("I'm already in another voice channel.").header(emoji_title("error", "Already Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
             return False
@@ -232,8 +231,8 @@ class Music(commands.Cog, name="Music"):
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if not interaction.guild:
                 await interaction.response.send_message(
-                    embed=EmbedBuilder().title(emoji_title("error", "Server Only"))
-                    .description("Music commands can only be used inside a server.").color("error")
+                    embed=EmbedBuilder()
+                    .description("Music commands can only be used inside a server.").header(emoji_title("error", "Server Only")).color("error")
                     .timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True,
                 )
@@ -244,8 +243,8 @@ class Music(commands.Cog, name="Music"):
                 settings = MUSIC_DEFAULTS
             if not settings.get("enabled", False):
                 await interaction.response.send_message(
-                    embed=EmbedBuilder().title(emoji_title("error", "Music Disabled"))
-                    .description("Music is disabled in this server. An admin can enable it from the dashboard.")
+                    embed=EmbedBuilder()
+                    .description("Music is disabled in this server. An admin can enable it from the dashboard.").header(emoji_title("error", "Music Disabled"))
                     .color("error").timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True,
                 )
@@ -257,8 +256,8 @@ class Music(commands.Cog, name="Music"):
                 is_admin = interaction.user.guild_permissions.manage_guild
                 if not (is_dj or is_admin):
                     await interaction.response.send_message(
-                        embed=EmbedBuilder().title(emoji_title("error", "DJ Only"))
-                        .description("You need the DJ role to use music commands.").color("error")
+                        embed=EmbedBuilder()
+                        .description("You need the DJ role to use music commands.").header(emoji_title("error", "DJ Only")).color("error")
                         .timestamp(datetime.datetime.utcnow()).build(),
                         ephemeral=True,
                     )
@@ -280,7 +279,7 @@ class Music(commands.Cog, name="Music"):
                 voice = await interaction.user.voice.channel.connect()
             except Exception as e:
                 return await interaction.followup.send(
-                    embed=EmbedBuilder().title(emoji_title("error", "Connection Failed")).description(f"Could not connect: {str(e)[:100]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                    embed=EmbedBuilder().description(f"Could not connect: {str(e)[:100]}").header(emoji_title("error", "Connection Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True
                 )
 
@@ -292,10 +291,9 @@ class Music(commands.Cog, name="Music"):
             await self.play_next(interaction.guild)
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("music", "Now Playing"))
-                .description(query[:200])
+                .description(query[:200]).header(emoji_title("music", "Now Playing"))
                 .color("brand")
-                .field("Requested by", interaction.user.mention)
+                .divider().field("Requested by", interaction.user.mention)
                 .footer(f"User ID: {str(interaction.user.id)}")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
@@ -304,10 +302,9 @@ class Music(commands.Cog, name="Music"):
             q.add(item)
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("music", "Added to Queue"))
-                .description(query[:200])
+                .description(query[:200]).header(emoji_title("music", "Added to Queue"))
                 .color("brand")
-                .row(
+                .divider().row(
                     ('Position', str(len(q))),
                     ('Requested by', interaction.user.mention)
                 )
@@ -324,12 +321,12 @@ class Music(commands.Cog, name="Music"):
         voice = interaction.guild.voice_client
         if not voice or not voice.is_playing():
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Nothing Playing")).description("Nothing is currently playing.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Nothing is currently playing.").header(emoji_title("error", "Nothing Playing")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         voice.stop()
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Skipped")).description("Skipped to next track.").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description("Skipped to next track.").header(emoji_title("music", "Skipped")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="stop", description="Stop playback and clear the queue")
@@ -337,7 +334,7 @@ class Music(commands.Cog, name="Music"):
         voice = interaction.guild.voice_client
         if not voice:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Connected")).description("Not connected to a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         q = self.queues.get(interaction.guild_id)
@@ -349,7 +346,7 @@ class Music(commands.Cog, name="Music"):
         except Exception:
             pass
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Stopped")).description("Playback stopped and disconnected.").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description("Playback stopped and disconnected.").header(emoji_title("music", "Stopped")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="queue", description="Show the current music queue")
@@ -357,7 +354,7 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q or (not q.queue and not q.current):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("music", "Queue")).description("Queue is empty.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("music", "Queue")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -374,10 +371,9 @@ class Music(commands.Cog, name="Music"):
         total_str = f"{total_dur // 60}:{total_dur % 60:02d}" if total_dur else "Unknown"
         embed = (
             EmbedBuilder()
-            .title(emoji_title("music", "Music Queue"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("music", "Music Queue"))
             .color("brand")
-            .row(
+            .divider().row(
                 ('Total Tracks', str(len(q))),
                 ('Total Duration', total_str),
                 ('Loop', emoji_title('check', 'On') if q.loop else emoji_title('cross', 'Off'))
@@ -392,13 +388,13 @@ class Music(commands.Cog, name="Music"):
     async def volume(self, interaction: discord.Interaction, level: int):
         if level < 0 or level > 100:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Invalid Volume")).description("Volume must be between 0 and 100.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Volume must be between 0 and 100.").header(emoji_title("error", "Invalid Volume")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         voice = interaction.guild.voice_client
         if not voice:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Connected")).description("Not connected to a voice channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if voice.source:
@@ -408,7 +404,7 @@ class Music(commands.Cog, name="Music"):
             q.volume = level / 100
         vol_bar = "▓" * (level // 10) + "░" * (10 - level // 10)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Volume")).description(f"{vol_bar} **{level}%**").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description(f"{vol_bar} **{level}%**").header(emoji_title("music", "Volume")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="nowplaying", description="Show what's currently playing")
@@ -416,15 +412,14 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q or not q.current:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Nothing Playing")).description("Nothing is currently playing.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Nothing is currently playing.").header(emoji_title("error", "Nothing Playing")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         embed = (
             EmbedBuilder()
-            .title(emoji_title("music", "Now Playing"))
-            .description(q.current.get("title", "Unknown"))
+            .description(q.current.get("title", "Unknown")).header(emoji_title("music", "Now Playing"))
             .color("brand")
-            .field("Requested by", q.current.get("requester", "Unknown"))
+            .divider().field("Requested by", q.current.get("requester", "Unknown"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -435,12 +430,12 @@ class Music(commands.Cog, name="Music"):
         voice = interaction.guild.voice_client
         if not voice or not voice.is_playing():
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Nothing Playing")).description("Nothing is currently playing.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Nothing is currently playing.").header(emoji_title("error", "Nothing Playing")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         voice.pause()
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Paused")).description("Playback paused.").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description("Playback paused.").header(emoji_title("music", "Paused")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="resume", description="Resume playback")
@@ -448,12 +443,12 @@ class Music(commands.Cog, name="Music"):
         voice = interaction.guild.voice_client
         if not voice or not voice.is_paused():
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Paused")).description("Playback is not paused.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Playback is not paused.").header(emoji_title("error", "Not Paused")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         voice.resume()
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Resumed")).description("Playback resumed.").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description("Playback resumed.").header(emoji_title("music", "Resumed")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="loop", description="Toggle loop for the current track")
@@ -461,14 +456,14 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         q.loop = not q.loop
         status = "enabled" if q.loop else "disabled"
         color = "brand"
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Loop")).description(f"Loop **{status}**.").color(color).timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description(f"Loop **{status}**.").header(emoji_title("music", "Loop")).color(color).timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="shuffle", description="Shuffle the queue")
@@ -476,12 +471,12 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q or len(q) == 0:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         q.shuffle()
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Shuffled")).description(f"Queue shuffled ({len(q)} tracks).").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description(f"Queue shuffled ({len(q)} tracks).").header(emoji_title("music", "Shuffled")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="remove", description="Remove a song from the queue")
@@ -490,17 +485,17 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q or len(q) == 0:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         removed = q.remove(position - 1)
         if removed:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("music", "Removed")).description(f"Removed: {removed.get('title', 'Unknown')}").color("brand").timestamp(datetime.datetime.utcnow()).build()
+                embed=EmbedBuilder().description(f"Removed: {removed.get('title', 'Unknown')}").header(emoji_title("music", "Removed")).color("brand").timestamp(datetime.datetime.utcnow()).build()
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Invalid Position")).description(f"Position must be between 1 and {len(q)}.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Position must be between 1 and {len(q)}.").header(emoji_title("error", "Invalid Position")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -509,13 +504,13 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if not q or len(q) == 0:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Empty Queue")).description("Queue is already empty.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Queue is already empty.").header(emoji_title("error", "Empty Queue")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         count = len(q)
         q.clear()
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("music", "Queue Cleared")).description(f"Removed {count} tracks from the queue.").color("brand").timestamp(datetime.datetime.utcnow()).build()
+            embed=EmbedBuilder().description(f"Removed {count} tracks from the queue.").header(emoji_title("music", "Queue Cleared")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
 

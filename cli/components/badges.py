@@ -264,10 +264,9 @@ class Badges(commands.Cog, name="Badges"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("reward", f"{target.display_name}'s Badges"))
-            .description(badge_text)
+            .description(badge_text).header(emoji_title("reward", f"{target.display_name}'s Badges"))
             .color("brand")
-            .row(
+            .divider().row(
                 ("Messages", f"{messages:,}"),
                 ("Voice", vc_str),
                 ("Tenure", tenure_str),
@@ -294,7 +293,7 @@ class Badges(commands.Cog, name="Badges"):
 
         if not rows:
             return await ctx.send(
-                embed=EmbedBuilder().title(emoji_title("info", "No Badges")).description("No one has earned badges yet.").color("blue").timestamp(datetime.datetime.utcnow()).build()
+                embed=EmbedBuilder().description("No one has earned badges yet.").header(emoji_title("info", "No Badges")).color("blue").timestamp(datetime.datetime.utcnow()).build()
             )
 
         lines = []
@@ -309,8 +308,7 @@ class Badges(commands.Cog, name="Badges"):
 
         embed = (
             EmbedBuilder()
-            .title(emoji_title("reward", "Badge Leaderboard"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("reward", "Badge Leaderboard"))
             .color("brand")
             .timestamp(datetime.datetime.utcnow())
             .build()

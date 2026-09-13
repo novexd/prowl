@@ -136,7 +136,7 @@ class AI(commands.Cog, name="AI"):
         api_key, provider, own_key = await _resolve_key(str(interaction.guild_id))
         if not api_key:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "AI Not Configured")).description("No API key set. Contact the bot owner.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("No API key set. Contact the bot owner.").header(emoji_title("error", "AI Not Configured")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -146,7 +146,7 @@ class AI(commands.Cog, name="AI"):
             if now - self._last_global < 5:
                 wait = int(5 - (now - self._last_global))
                 return await interaction.response.send_message(
-                    embed=EmbedBuilder().title(emoji_title("warning", "Slow Down")).description(f"Global cooldown - try again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("warn").timestamp(datetime.datetime.utcnow()).build(),
+                    embed=EmbedBuilder().description(f"Global cooldown - try again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").header(emoji_title("warning", "Slow Down")).color("warn").timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True
                 )
             uid = str(interaction.user.id)
@@ -154,7 +154,7 @@ class AI(commands.Cog, name="AI"):
             if now - last < 60:
                 wait = int(60 - (now - last))
                 return await interaction.response.send_message(
-                    embed=EmbedBuilder().title(emoji_title("warning", "Cooldown")).description(f"You can use AI again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").color("warn").timestamp(datetime.datetime.utcnow()).build(),
+                    embed=EmbedBuilder().description(f"You can use AI again in {wait}s. Provide your own AI key on the dashboard to skip rate limits.").header(emoji_title("warning", "Cooldown")).color("warn").timestamp(datetime.datetime.utcnow()).build(),
                     ephemeral=True
                 )
             self._last_global = now
@@ -186,7 +186,7 @@ class AI(commands.Cog, name="AI"):
                         error_data = await resp.json()
                         error_msg = error_data.get("error", {}).get("message", "Unknown error")
                         return await interaction.followup.send(
-                            embed=EmbedBuilder().title(emoji_title("error", "AI Error")).description(f"API returned error: {error_msg[:200]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                            embed=EmbedBuilder().description(f"API returned error: {error_msg[:200]}").header(emoji_title("error", "AI Error")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                             ephemeral=True
                         )
                     data = await resp.json()
@@ -196,7 +196,9 @@ class AI(commands.Cog, name="AI"):
                     await interaction.followup.send(
                         content=f"{interaction.user.mention}\n\n{reply[:4000]}",
                         embed=EmbedBuilder()
+                        .header(emoji_title("sparkle", "AI Response"))
                         .color("blue")
+                        .divider()
                         .row(
                             ('Model', model),
                             ('Tokens Used', str(tokens_used))
@@ -208,13 +210,13 @@ class AI(commands.Cog, name="AI"):
                     )
         except aiohttp.ClientError as e:
             await interaction.followup.send(
-                embed=EmbedBuilder().title(emoji_title("error", "Connection Error")).description(f"Failed to reach AI service: {str(e)[:200]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Failed to reach AI service: {str(e)[:200]}").header(emoji_title("error", "Connection Error")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         except Exception as e:
             logger.error(f"AI chat error: {e}")
             await interaction.followup.send(
-                embed=EmbedBuilder().title(emoji_title("error", "AI Error")).description(f"Something went wrong: {str(e)[:200]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Something went wrong: {str(e)[:200]}").header(emoji_title("error", "AI Error")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -222,7 +224,7 @@ class AI(commands.Cog, name="AI"):
     async def clear_history(self, interaction: discord.Interaction):
         self.sessions.pop(str(interaction.guild_id), None)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "History Cleared")).description("AI conversation history has been cleared.").color("success").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description("AI conversation history has been cleared.").header(emoji_title("success", "History Cleared")).color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -236,12 +238,12 @@ class AI(commands.Cog, name="AI"):
         api_key, provider, _ = await _resolve_key(str(interaction.guild_id))
         if not api_key:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "AI Not Configured")).description("No API key set.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("No API key set.").header(emoji_title("error", "AI Not Configured")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if provider == "groq":
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Not Supported")).description("Groq does not support image generation. Use an OpenAI or OpenRouter key.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Groq does not support image generation. Use an OpenAI or OpenRouter key.").header(emoji_title("error", "Not Supported")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await interaction.response.defer()
@@ -257,18 +259,17 @@ class AI(commands.Cog, name="AI"):
                         error_data = await resp.json()
                         error_msg = error_data.get("error", {}).get("message", "Unknown error")
                         return await interaction.followup.send(
-                            embed=EmbedBuilder().title(emoji_title("error", "Generation Failed")).description(f"API error: {error_msg[:200]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                            embed=EmbedBuilder().description(f"API error: {error_msg[:200]}").header(emoji_title("error", "Generation Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                             ephemeral=True
                         )
                     data = await resp.json()
                     image_url = data["data"][0]["url"]
                     embed = (
                         EmbedBuilder()
-                        .title(emoji_title("image", "Generated Image"))
-                        .description(prompt[:1000])
+                        .description(prompt[:1000]).header(emoji_title("image", "Generated Image"))
                         .image(image_url)
                         .color("gray")
-                        .row(
+                        .divider().row(
                             ('Model', f"`{model}` ({provider.title()})"),
                             ('Requested by', interaction.user.display_name),
                         )
@@ -279,7 +280,7 @@ class AI(commands.Cog, name="AI"):
         except Exception as e:
             logger.error(f"AI imagine error: {e}")
             await interaction.followup.send(
-                embed=EmbedBuilder().title(emoji_title("error", "Generation Failed")).description(f"Something went wrong: {str(e)[:200]}").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Something went wrong: {str(e)[:200]}").header(emoji_title("error", "Generation Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
 
@@ -287,15 +288,14 @@ class AI(commands.Cog, name="AI"):
     async def config(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_ai_settings(interaction.guild_id)
         embed = (
             EmbedBuilder()
-            .title(emoji_title("settings", "AI Configuration"))
             .color("brand")
-            .row(
+            .divider().row(
                 ('Enabled', 'Yes' if settings.get('enabled') else 'No'),
                 ('Model', settings.get('model', 'gpt-3.5-turbo')),
                 ('Max Tokens', str(settings.get('max_tokens', 500))),
@@ -303,7 +303,7 @@ class AI(commands.Cog, name="AI"):
                 ('System Prompt', settings.get('system_prompt', AI_DEFAULTS['system_prompt'])[:1024])
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("settings", "AI Configuration")).build()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -313,14 +313,14 @@ class AI(commands.Cog, name="AI"):
     async def set_model(self, interaction: discord.Interaction, model: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_ai_settings(interaction.guild_id)
         settings["model"] = model
         await save_ai_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Model Updated")).description(f"AI model set to **{model}**").color("success").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description(f"AI model set to **{model}**").header(emoji_title("success", "Model Updated")).color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -329,19 +329,19 @@ class AI(commands.Cog, name="AI"):
     async def set_prompt(self, interaction: discord.Interaction, prompt: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if len(prompt) > 1000:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Too Long")).description("System prompt too long (max 1000 characters).").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("System prompt too long (max 1000 characters).").header(emoji_title("error", "Too Long")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         settings = await get_ai_settings(interaction.guild_id)
         settings["system_prompt"] = prompt
         await save_ai_settings(interaction.guild_id, settings)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Prompt Updated")).description(f"System prompt updated:\n```\n{prompt[:500]}\n```").color("success").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description(f"System prompt updated:\n```\n{prompt[:500]}\n```").header(emoji_title("success", "Prompt Updated")).color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 

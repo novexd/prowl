@@ -128,8 +128,7 @@ def _parse_when(text: str, now: Optional[datetime.datetime] = None):
 def _err(msg: str):
     return (
         EmbedBuilder()
-        .title(emoji_title("error", "Error"))
-        .description(msg)
+        .description(msg).header(emoji_title("error", "Error"))
         .color("red")
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -139,8 +138,7 @@ def _err(msg: str):
 def _ok(msg: str, title="Success"):
     return (
         EmbedBuilder()
-        .title(emoji_title("success", title))
-        .description(msg)
+        .description(msg).header(emoji_title("success", title))
         .color("green")
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -150,8 +148,7 @@ def _ok(msg: str, title="Success"):
 def _info(msg: str):
     return (
         EmbedBuilder()
-        .title(emoji_title("info", "Heads up"))
-        .description(msg)
+        .description(msg).header(emoji_title("info", "Heads up"))
         .color("blue")
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -211,8 +208,7 @@ class Reminders(commands.Cog):
         ]
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("remind", "Your reminders"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("remind", "Your reminders"))
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
             .build(),
@@ -261,8 +257,7 @@ class Reminders(commands.Cog):
             lines.append(f"{mark} `{r['id']}` {r['task']}")
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("todo", "Your to-do list"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("todo", "Your to-do list"))
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
             .build(),

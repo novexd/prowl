@@ -71,14 +71,13 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("message", "Message Deleted"))
             .color("gray")
-            .row(
+            .divider().row(
                 ('Channel', message.channel.mention),
                 ('Author', f'{message.author} (`{message.author.id}`)')
             )
             .timestamp(message.created_at or datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("message", "Message Deleted")).build()
         )
         if message.content:
             embed.add_field(name="Content", value=message.content[:1000] or "*(empty)*", inline=False)
@@ -91,14 +90,13 @@ class Logging(commands.Cog, name="Logging"):
         first = messages[0]
         embed = (
             EmbedBuilder()
-            .title(emoji_title("message", "Bulk Message Deleted"))
             .color("gray")
-            .row(
+            .divider().row(
                 ('Channel', first.channel.mention),
                 ('Messages', str(len(messages)))
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("message", "Bulk Message Deleted")).build()
         )
         await self._post(first.guild, "message_delete_channel", embed)
 
@@ -110,16 +108,15 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("message", "Message Edited"))
             .color("gray")
-            .row(
+            .divider().row(
                 ('Channel', after.channel.mention),
                 ('Author', f'{after.author} (`{after.author.id}`)')
             )
             .field("Before", (before.content or "*(embed only)*")[:1000], inline=False)
             .field("After", (after.content or "*(embed only)*")[:1000], inline=False)
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("message", "Message Edited")).build()
         )
         await self._post(after.guild, "message_edit_channel", embed)
 
@@ -128,11 +125,10 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_join(self, member):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("welcome", "Member Joined"))
             .color("success")
-            .description(f"{member.mention} - {member}")
+            .description(f"{member.mention} - {member}").header(emoji_title("welcome", "Member Joined"))
             .thumbnail(member.display_avatar.url)
-            .row(
+            .divider().row(
                 ('Account Created', _fmt_time(member.created_at)),
                 ('Member #', str(len(member.guild.members)))
             )
@@ -145,11 +141,10 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_remove(self, member):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("goodbye", "Member Left"))
             .color("error")
-            .description(f"{member} (`{member.id}`)")
+            .description(f"{member} (`{member.id}`)").header(emoji_title("goodbye", "Member Left"))
             .thumbnail(member.display_avatar.url)
-            .row(
+            .divider().row(
                 ('Joined', _fmt_time(member.joined_at)),
                 ('Roles', str(len(member.roles) - 1))
             )
@@ -162,9 +157,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_ban(self, guild, user):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("ban", "Member Banned"))
             .color("error")
-            .description(f"{user} (`{user.id}`)")
+            .description(f"{user} (`{user.id}`)").header(emoji_title("ban", "Member Banned"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -174,9 +168,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_member_unban(self, guild, user):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("unban", "Member Unbanned"))
             .color("success")
-            .description(f"{user} (`{user.id}`)")
+            .description(f"{user} (`{user.id}`)").header(emoji_title("unban", "Member Unbanned"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -190,15 +183,14 @@ class Logging(commands.Cog, name="Logging"):
         if before.nick != after.nick:
             embed = (
                 EmbedBuilder()
-.title(emoji_title("member", "Nickname Changed"))
             .color("gray")
-                .row(
+                .divider().row(
                     ('User', f'{after.mention} (`{after.id}`)'),
                     ('Before', before.nick or '*(none)*'),
                     ('After', after.nick or '*(none)*')
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("member", "Nickname Changed")).build()
             )
             await self._post(after.guild, "nickname_channel", embed)
         # Roles
@@ -212,14 +204,13 @@ class Logging(commands.Cog, name="Logging"):
                 parts.append("**Removed:** " + ", ".join(r.mention for r in removed))
             embed = (
                 EmbedBuilder()
-.title(emoji_title("role", "Roles Updated"))
             .color("brand")
-                .row(
+                .divider().row(
                     ('User', f'{after.mention} (`{after.id}`)'),
                     ('Change', '\n'.join(parts) or '*(none)*')
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("role", "Roles Updated")).build()
             )
             await self._post(after.guild, "member_roles_channel", embed)
         # Mute (Discord timeout)
@@ -230,14 +221,13 @@ class Logging(commands.Cog, name="Logging"):
                 text = "Mute lifted"
             embed = (
                 EmbedBuilder()
-.title(emoji_title("mute", "Mute Changed"))
             .color("warn")
-                .row(
+                .divider().row(
                     ('User', f'{after.mention} (`{after.id}`)'),
                     ('Status', text)
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("mute", "Mute Changed")).build()
             )
             await self._post(after.guild, "member_mute_channel", embed)
 
@@ -246,9 +236,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_channel_create(self, channel):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("channel", "Channel Created"))
             .color("gray")
-            .description(f"{channel.mention} - `{channel.name}`")
+            .description(f"{channel.mention} - `{channel.name}`").header(emoji_title("channel", "Channel Created"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -258,9 +247,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_channel_delete(self, channel):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("channel", "Channel Deleted"))
             .color("gray")
-            .description(f"`#{channel.name}`")
+            .description(f"`#{channel.name}`").header(emoji_title("channel", "Channel Deleted"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -277,9 +265,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("channel", "Channel Updated"))
             .color("gray")
-            .description(f"{after.mention}\n" + "\n".join(changes))
+            .description(f"{after.mention}\n" + "\n".join(changes)).header(emoji_title("channel", "Channel Updated"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -290,9 +277,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_role_create(self, role):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("role", "Role Created"))
             .color("brand")
-            .description(role.mention)
+            .description(role.mention).header(emoji_title("role", "Role Created"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -302,9 +288,8 @@ class Logging(commands.Cog, name="Logging"):
     async def on_guild_role_delete(self, role):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("role", "Role Deleted"))
             .color("brand")
-            .description(f"`@{role.name}`")
+            .description(f"`@{role.name}`").header(emoji_title("role", "Role Deleted"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -323,9 +308,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("role", "Role Updated"))
             .color("brand")
-            .description(f"{after.mention}\n" + "\n".join(changes))
+            .description(f"{after.mention}\n" + "\n".join(changes)).header(emoji_title("role", "Role Updated"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -347,9 +331,8 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("server", "Server Updated"))
             .color("gray")
-            .description("\n".join(changes))
+            .description("\n".join(changes)).header(emoji_title("server", "Server Updated"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -369,9 +352,8 @@ class Logging(commands.Cog, name="Logging"):
             parts.append("**Removed:** " + " ".join(f":{e.name}:" for e in removed))
         embed = (
             EmbedBuilder()
-            .title(emoji_title("sparkle", "Emoji Updated"))
             .color("pink")
-            .description("\n".join(parts))
+            .description("\n".join(parts)).header(emoji_title("sparkle", "Emoji Updated"))
             .timestamp(datetime.datetime.utcnow())
             .build()
         )
@@ -385,15 +367,14 @@ class Logging(commands.Cog, name="Logging"):
             return
         embed = (
             EmbedBuilder()
-            .title(emoji_title("invite_create", "Invite Created"))
             .color("success")
-            .row(
+            .divider().row(
                 ('Code', invite.code),
                 ('Channel', invite.channel.mention if invite.channel else '-'),
                 ('Max Uses', str(invite.max_uses) if invite.max_uses else '∞')
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("invite_create", "Invite Created")).build()
         )
         await self._post(guild, "invite_create_channel", embed)
 
@@ -408,39 +389,36 @@ class Logging(commands.Cog, name="Logging"):
         if before.channel is None and after.channel is not None:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("mic", "Joined Voice"))
                 .color("gray")
-                .row(
+                .divider().row(
                     ('User', member.mention),
                     ('Channel', after.channel.mention)
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("mic", "Joined Voice")).build()
             )
         elif before.channel is not None and after.channel is None:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("mic", "Left Voice"))
                 .color("gray")
-                .row(
+                .divider().row(
                     ('User', member.mention),
                     ('Channel', before.channel.mention)
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("mic", "Left Voice")).build()
             )
         elif before.channel is not None and after.channel is not None:
             embed = (
                 EmbedBuilder()
-                .title(emoji_title("mic", "Moved Voice"))
                 .color("gray")
-                .row(
+                .divider().row(
                     ('User', member.mention),
                     ('Before', before.channel.mention),
                     ('After', after.channel.mention)
                 )
                 .timestamp(datetime.datetime.utcnow())
-                .build()
+                .header(emoji_title("mic", "Moved Voice")).build()
             )
         if embed:
             await self._post(member.guild, "voice_channel", embed)

@@ -127,20 +127,19 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def add(self, interaction: discord.Interaction, trigger: str, response: str, match_type: str = "contains", channel: discord.TextChannel = None, cooldown: int = 0):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         if len(response) > 2000:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Too Long")).description("Response too long (max 2000 characters).").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Response too long (max 2000 characters).").header(emoji_title("error", "Too Long")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.save_trigger(interaction.guild_id, trigger, response, match_type, str(channel.id) if channel else None, cooldown)
         embed = (
             EmbedBuilder()
-            .title(emoji_title("success", "Auto-Response Added"))
             .color("success")
-            .row(
+            .divider().row(
                 ('Trigger', f'`{trigger}`'),
                 ('Response', response[:1024]),
                 ('Match Type', match_type.title()),
@@ -148,7 +147,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
                 ('Cooldown', f'{cooldown}s' if cooldown else 'None')
             )
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("success", "Auto-Response Added")).build()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -157,12 +156,12 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def remove(self, interaction: discord.Interaction, trigger: str):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         await self.remove_trigger(interaction.guild_id, trigger)
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("success", "Auto-Response Removed")).description(f"Removed trigger: `{trigger}`").color("success").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description(f"Removed trigger: `{trigger}`").header(emoji_title("success", "Auto-Response Removed")).color("success").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True
         )
 
@@ -170,13 +169,13 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
     async def list_triggers(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.manage_guild:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Server permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Server permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         triggers = await self.load_triggers(interaction.guild_id)
         if not triggers:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("settings", "Auto-Responses")).description("No auto-responses configured.").color("brand").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("No auto-responses configured.").header(emoji_title("settings", "Auto-Responses")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         lines = []
@@ -186,8 +185,7 @@ class Autoresponder(commands.Cog, name="Autoresponder"):
             lines.append(f"`{t['trigger']}` → {t['response'][:50]} ({t['match_type']}) | {channel_str}")
         embed = (
             EmbedBuilder()
-            .title(emoji_title("settings", "Auto-Responses"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("settings", "Auto-Responses"))
             .color("brand")
             .footer(f"Total: {len(triggers)} triggers")
             .timestamp(datetime.datetime.utcnow())

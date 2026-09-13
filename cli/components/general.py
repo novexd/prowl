@@ -31,9 +31,8 @@ class General(commands.Cog):
         cpu = process.cpu_percent(interval=0.1)
         embed = (
             EmbedBuilder()
-            .title(emoji_title("bolt", "Pong!"))
             .color("warn")
-            .row(
+            .divider().row(
                 ("Latency", f"{latency}ms"),
                 ("Uptime", uptime),
                 ("Servers", f"{guilds:,}"),
@@ -50,7 +49,7 @@ class General(commands.Cog):
             )
             .footer(f"Requested by {interaction.user.display_name}")
             .timestamp(datetime.datetime.utcnow())
-            .build()
+            .header(emoji_title("bolt", "Pong!")).build()
         )
         await interaction.followup.send(embed=embed)
 
@@ -61,11 +60,10 @@ class General(commands.Cog):
         has_preview = preview_path.exists()
         embed = (
             EmbedBuilder()
-            .title(emoji_title("bot", "Prowl"))
-            .description("A silly little cat bot with a ton of abilities")
+            .description("A silly little cat bot with a ton of abilities").header(emoji_title("bot", "Prowl"))
             .color("gray")
             .thumbnail("https://prowlbot.xyz/static/favicon.png")
-            .field("Servers", str(len(self.bot.guilds)), inline=True)
+            .divider().field("Servers", str(len(self.bot.guilds)), inline=True)
             .field("Users", str(len(self.bot.users)), inline=True)
             .field("Uptime", uptime, inline=True)
             .field("Python", f"{__import__('sys').version.split()[0]}", inline=True)
@@ -107,8 +105,7 @@ class General(commands.Cog):
         view.add_item(discord.ui.Button(label="Invite Prowl", url=url, style=discord.ButtonStyle.link))
         embed = (
             EmbedBuilder()
-            .title(emoji_title("invite_join", "Invite Prowl"))
-            .description(f"Click the button below to add Prowl to your server.\n\n[Direct link]({url})")
+            .description(f"Click the button below to add Prowl to your server.\n\n[Direct link]({url})").header(emoji_title("invite_join", "Invite Prowl"))
             .color("brand")
             .build()
         )
@@ -119,7 +116,7 @@ class General(commands.Cog):
     async def say(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel = None):
         if not interaction.user.guild_permissions.manage_messages:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Messages permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Messages permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         target = channel or interaction.channel
@@ -134,12 +131,12 @@ class General(commands.Cog):
         await target.send(embed=embed)
         if target != interaction.channel:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("send", "Message Sent")).description(f"Sent to {target.mention}").color("success").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description(f"Sent to {target.mention}").header(emoji_title("send", "Message Sent")).color("success").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("send", "Message Sent")).color("success").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().color("success").timestamp(datetime.datetime.utcnow()).header(emoji_title("send", "Message Sent")).build(),
                 ephemeral=True
             )
 
@@ -161,9 +158,10 @@ class General(commands.Cog):
         boost_count = guild.premium_subscription_count or 0
         embed = (
             EmbedBuilder()
-            .title(emoji_title("server", guild.name))
+            .header(emoji_title("server", guild.name))
             .color("gray")
             .thumbnail(guild.icon.url if guild.icon else None)
+            .divider()
             .field("Owner", owner.mention if owner else "Unknown")
             .field("Members", str(guild.member_count), inline=True)
             .field("Humans", str(sum(1 for m in guild.members if not m.bot)), inline=True)
@@ -191,8 +189,7 @@ class General(commands.Cog):
     async def serverid(self, interaction: discord.Interaction):
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("id", "Server ID"))
-            .description(f"```{interaction.guild.id}```")
+            .description(f"```{interaction.guild.id}```").header(emoji_title("id", "Server ID"))
             .color("gray")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -214,9 +211,10 @@ class General(commands.Cog):
         perms_str = ", ".join(key_perms[:5]) if key_perms else "None"
         embed = (
             EmbedBuilder()
-            .title(target.display_name)
+            .header(emoji_title("member", target.display_name))
             .color(target.color if target.color != discord.Color.default() else "gray")
             .thumbnail(target.display_avatar.url)
+            .divider()
             .field("Username", target.name, inline=True)
             .field("Nickname", target.nick or "None", inline=True)
             .field("User ID", str(target.id), inline=True)
@@ -239,10 +237,9 @@ class General(commands.Cog):
         avatar_url = target.display_avatar.url
         embed = (
             EmbedBuilder()
-            .title(emoji_title("member", f"{target.display_name}'s Avatar"))
             .color("gray")
             .image(avatar_url)
-            .description(f"[Open in Browser]({avatar_url})")
+            .description(f"[Open in Browser]({avatar_url})").header(emoji_title("member", f"{target.display_name}'s Avatar"))
             .footer(f"Requested by {interaction.user.display_name}")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -258,8 +255,9 @@ class General(commands.Cog):
         members_with_role = [m for m in role.guild.members if role in m.roles]
         embed = (
             EmbedBuilder()
-            .title(emoji_title("role", role.name))
+            .header(emoji_title("role", role.name))
             .color(role.color if role.color != discord.Color.default() else "brand")
+            .divider()
             .field("Role ID", str(role.id), inline=True)
             .field("Color", f"#{role.color.value:06x}" if role.color != discord.Color.default() else "Default", inline=True)
             .field("Position", str(role.position), inline=True)
@@ -280,8 +278,7 @@ class General(commands.Cog):
     async def roleid(self, interaction: discord.Interaction, role: discord.Role):
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("id", f"{role.name} ID"))
-            .description(f"```{role.id}```")
+            .description(f"```{role.id}```").header(emoji_title("id", f"{role.name} ID"))
             .color("gray")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -299,8 +296,9 @@ class General(commands.Cog):
         slowmode_str = f"{slowmode}s" if slowmode else "Disabled"
         embed = (
             EmbedBuilder()
-            .title(emoji_title("channel", target.name))
+            .header(emoji_title("channel", target.name))
             .color("gray")
+            .divider()
             .field("Channel ID", str(target.id), inline=True)
             .field("Type", str(target.type).title(), inline=True)
             .field("Category", target.category.name if target.category else "None", inline=True)
@@ -323,9 +321,9 @@ class General(commands.Cog):
             overwrites = target.overwrites_for(target.guild.default_role)
             overwrites.send_messages = False
             await target.set_permissions(target.guild.default_role, overwrite=overwrites)
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("lock", f"Locked {target.name}")).description(f"{target.mention} has been locked. Members cannot send messages.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description(f"{target.mention} has been locked. Members cannot send messages.").header(emoji_title("lock", f"Locked {target.name}")).color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description("You need Manage Channels permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @channel_group.command(name="unlock", description="Unlock a channel (allow members to send messages).")
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
@@ -335,9 +333,9 @@ class General(commands.Cog):
             overwrites = target.overwrites_for(target.guild.default_role)
             overwrites.send_messages = True
             await target.set_permissions(target.guild.default_role, overwrite=overwrites)
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("unlock", f"Unlocked {target.name}")).description(f"{target.mention} has been unlocked. Members can send messages again.").color("success").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description(f"{target.mention} has been unlocked. Members can send messages again.").header(emoji_title("unlock", f"Unlocked {target.name}")).color("success").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
         else:
-            await interaction.response.send_message(embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Channels permission.").color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
+            await interaction.response.send_message(embed=EmbedBuilder().description("You need Manage Channels permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(), ephemeral=True)
 
     @channel_group.command(name="id", description="Get the ID of a channel.")
     @app_commands.describe(channel="The channel to look up")
@@ -345,8 +343,7 @@ class General(commands.Cog):
         target = channel or interaction.channel
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("id", f"{target.name} ID"))
-            .description(f"```{target.id}```")
+            .description(f"```{target.id}```").header(emoji_title("id", f"{target.name} ID"))
             .color("gray")
             .timestamp(datetime.datetime.utcnow())
             .build()
@@ -359,7 +356,7 @@ class General(commands.Cog):
     async def refreshcommands(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Administrator permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         await interaction.response.defer(ephemeral=True)
@@ -375,7 +372,7 @@ class General(commands.Cog):
         except Exception as e:
             msg = f"Sync failed: {e}"
         await interaction.followup.send(
-            embed=EmbedBuilder().title(emoji_title("refresh", "Commands Refreshed")).description(msg).color("green").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder().description(msg).header(emoji_title("refresh", "Commands Refreshed")).color("green").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True,
         )
 
@@ -389,37 +386,37 @@ class General(commands.Cog):
     async def rr_add(self, interaction: discord.Interaction, message_link: str, emoji: str, role: discord.Role):
         if not interaction.user.guild_permissions.manage_roles:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Roles permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         parsed = self._parse_message_link(message_link)
         if not parsed:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Invalid Link")).description("Provide a valid message link (right-click > Copy Message Link).").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Provide a valid message link (right-click > Copy Message Link).").header(emoji_title("error", "Invalid Link")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         guild_id, channel_id, message_id = parsed
         if guild_id != str(interaction.guild_id):
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Wrong Server")).description("That message is not in this server.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("That message is not in this server.").header(emoji_title("error", "Wrong Server")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         channel = interaction.guild.get_channel(int(channel_id))
         if not channel:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Channel Not Found")).description("Could not find that channel.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Could not find that channel.").header(emoji_title("error", "Channel Not Found")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         try:
             message = await channel.fetch_message(int(message_id))
         except discord.NotFound:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Message Not Found")).description("Could not find that message.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Could not find that message.").header(emoji_title("error", "Message Not Found")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         if role >= interaction.user.top_role and interaction.user != interaction.guild.owner:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Role Too High")).description("That role is higher than or equal to your highest role.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("That role is higher than or equal to your highest role.").header(emoji_title("error", "Role Too High")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         await neon_db.add_reaction_role(interaction.guild_id, channel_id, message_id, emoji, role.id)
@@ -429,8 +426,7 @@ class General(commands.Cog):
             pass
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("success", "Reaction Role Added"))
-            .description(f"Reacting with {emoji} on [that message]({message_link}) will now give {role.mention}.")
+            .description(f"Reacting with {emoji} on [that message]({message_link}) will now give {role.mention}.").header(emoji_title("success", "Reaction Role Added"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build(),
@@ -442,21 +438,20 @@ class General(commands.Cog):
     async def rr_remove(self, interaction: discord.Interaction, message_link: str, emoji: str):
         if not interaction.user.guild_permissions.manage_roles:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Manage Roles permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Manage Roles permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         parsed = self._parse_message_link(message_link)
         if not parsed:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Invalid Link")).description("Provide a valid message link.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("Provide a valid message link.").header(emoji_title("error", "Invalid Link")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         _, channel_id, message_id = parsed
         await neon_db.remove_reaction_role(interaction.guild_id, message_id, emoji)
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("success", "Reaction Role Removed"))
-            .description(f"Removed reaction role for {emoji}.")
+            .description(f"Removed reaction role for {emoji}.").header(emoji_title("success", "Reaction Role Removed"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build(),
@@ -468,7 +463,7 @@ class General(commands.Cog):
         rows = await neon_db.get_all_reaction_roles(interaction.guild_id)
         if not rows:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("info", "No Reaction Roles")).description("No reaction roles set up yet.").color("blue").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("No reaction roles set up yet.").header(emoji_title("info", "No Reaction Roles")).color("blue").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         lines = []
@@ -480,8 +475,7 @@ class General(commands.Cog):
             lines.append(f"{r['emoji']} {role_name} in {ch_name}")
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("hash", "Reaction Roles"))
-            .description("\n".join(lines))
+            .description("\n".join(lines)).header(emoji_title("hash", "Reaction Roles"))
             .color("blue")
             .timestamp(datetime.datetime.utcnow())
             .build(),
@@ -492,14 +486,13 @@ class General(commands.Cog):
     async def rr_clear(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                embed=EmbedBuilder().title(emoji_title("error", "Permission Denied")).description("You need Administrator permission.").color("error").timestamp(datetime.datetime.utcnow()).build(),
+                embed=EmbedBuilder().description("You need Administrator permission.").header(emoji_title("error", "Permission Denied")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True,
             )
         await neon_db.clear_reaction_roles(interaction.guild_id)
         await interaction.response.send_message(
             embed=EmbedBuilder()
-            .title(emoji_title("success", "Cleared"))
-            .description("All reaction roles have been removed.")
+            .description("All reaction roles have been removed.").header(emoji_title("success", "Cleared"))
             .color("green")
             .timestamp(datetime.datetime.utcnow())
             .build(),
@@ -761,9 +754,10 @@ class HelpView(discord.ui.View):
             lines.append(f"**{cmd['name']}**{usage}\n{cmd['desc']}{perm_tag}")
         embed = (
             EmbedBuilder()
-            .title(emoji_title(cat["emoji"], cat_name))
             .description(cat["description"])
+            .header(emoji_title(cat["emoji"], cat_name))
             .color(cat["color"])
+            .divider()
             .field("Commands", "\n\n".join(lines), inline=False)
             .footer(f"Page {self.page}/{len(self.pages) - 1}  •  <required>  [optional]  `perms`")
             .timestamp(datetime.datetime.utcnow())
@@ -774,10 +768,11 @@ class HelpView(discord.ui.View):
     def _build_home(self):
         embed = (
             EmbedBuilder()
-            .title(emoji_title("sparkle", "Prowl Help"))
             .description("Select a category below or use the buttons to browse.\nArgument keys: `<required>` `[optional]`\nPermission tags show when a role or perm is needed.")
+            .header(emoji_title("sparkle", "Prowl Help"))
             .color("pink")
             .thumbnail("https://prowlbot.xyz/static/favicon.png")
+            .divider()
         )
         for name, cat in HELP_CATEGORIES.items():
             count = len(cat["commands"])

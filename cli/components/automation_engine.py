@@ -435,8 +435,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
                 text = self._resolve(cfg.get("text", ""), ctx)
                 embed = (
                     EmbedBuilder()
-                    .title(emoji_title("ticket", title))
-                    .description(text[:4000] if text else "No description")
+                    .description(text[:4000] if text else "No description").header(emoji_title("ticket", title))
                     .color("blue")
                     .timestamp(datetime.datetime.utcnow())
                     .build()
@@ -459,8 +458,7 @@ class AutomationEngine(commands.Cog, name="AutomationEngine"):
                 if text:
                     embed = (
                         EmbedBuilder()
-                        .title(emoji_title("log", "Automation Log"))
-                        .description(text[:4000])
+                        .description(text[:4000]).header(emoji_title("log", "Automation Log"))
                         .color("grey")
                         .timestamp(datetime.datetime.utcnow())
                         .build()

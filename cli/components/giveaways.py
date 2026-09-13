@@ -106,15 +106,15 @@ def _parse_end(text: str):
 
 def _err(msg: str):
     return (
-        EmbedBuilder().title(emoji_title("error", "Error"))
-        .description(msg).color("red").timestamp(datetime.datetime.utcnow()).build()
+        EmbedBuilder()
+        .description(msg).header(emoji_title("error", "Error")).color("red").timestamp(datetime.datetime.utcnow()).build()
     )
 
 
 def _ok(msg: str, title="Success"):
     return (
-        EmbedBuilder().title(emoji_title("success", title))
-        .description(msg).color("green").timestamp(datetime.datetime.utcnow()).build()
+        EmbedBuilder()
+        .description(msg).header(emoji_title("success", title)).color("green").timestamp(datetime.datetime.utcnow()).build()
     )
 
 
@@ -266,15 +266,15 @@ class GiveawayCog(commands.Cog):
         ends_txt = "Ended" if ended else discord.utils.format_dt(end_dt, "R")
         embed = (
             EmbedBuilder()
-            .title("🎉 " + (gw.get("prize") or "Giveaway")[:250])
+            .description(gw.get("description", "")[:900] if gw.get("description") else "")
+            .header("🎉 " + (gw.get("prize") or "Giveaway")[:250])
             .color(0xF1C40F if not ended else 0x808080)
+            .divider()
             .field("Status", "Ended" if ended else "Active", inline=True)
             .field("Ends", ends_txt, inline=True)
             .field("Entries", str(count), inline=True)
             .field("Winners", str(gw.get("winners_count", 1)), inline=True)
         )
-        if gw.get("description"):
-            embed.description(gw["description"][:900])
         if gw.get("required_role_id"):
             embed.field("Required role", f"<@&{gw['required_role_id']}>", inline=True)
         if gw.get("required_xp") or gw.get("required_level") or gw.get("required_msgs"):
@@ -495,8 +495,8 @@ class GiveawayCog(commands.Cog):
             ends = discord.utils.format_dt(datetime.datetime.fromtimestamp(r["end_ts"]), "R")
             lines.append(f"**{r['prize'][:60]}** · `{status}` · ends {ends} · ID `{r['id']}`")
         await interaction.response.send_message(
-            embed=EmbedBuilder().title(emoji_title("gift", "Giveaways"))
-            .description("\n".join(lines)).color("blue").timestamp(datetime.datetime.utcnow()).build(),
+            embed=EmbedBuilder()
+            .description("\n".join(lines)).header(emoji_title("gift", "Giveaways")).color("blue").timestamp(datetime.datetime.utcnow()).build(),
             ephemeral=True,
         )
 

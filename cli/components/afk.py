@@ -28,8 +28,7 @@ AFK_COOLDOWN = 30  # seconds between repeat notices for the same AFK user in a c
 def _err(msg: str):
     return (
         EmbedBuilder()
-        .title(emoji_title("error", "Error"))
-        .description(msg)
+        .description(msg).header(emoji_title("error", "Error"))
         .color("red")
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -39,8 +38,7 @@ def _err(msg: str):
 def _ok(msg: str, title="Success"):
     return (
         EmbedBuilder()
-        .title(emoji_title("success", title))
-        .description(msg)
+        .description(msg).header(emoji_title("success", title))
         .color("green")
         .timestamp(datetime.datetime.utcnow())
         .build()
@@ -50,8 +48,7 @@ def _ok(msg: str, title="Success"):
 def _info(msg: str):
     return (
         EmbedBuilder()
-        .title(emoji_title("info", "Heads up"))
-        .description(msg)
+        .description(msg).header(emoji_title("info", "Heads up"))
         .color("blue")
         .timestamp(datetime.datetime.utcnow())
         .build()

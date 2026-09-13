@@ -55,7 +55,7 @@ class RaidProtection(commands.Cog, name="RaidProtection"):
         if not ch:
             return
         try:
-            await ch.send(embed=EmbedBuilder().title(title).description(description).color(color).timestamp(datetime.datetime.utcnow()).build())
+            await ch.send(embed=EmbedBuilder().description(description).header(title).color(color).timestamp(datetime.datetime.utcnow()).build())
         except Exception as e:
             logger.warning(f"Raid log failed in {guild.id}: {e}")
 

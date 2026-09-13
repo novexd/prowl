@@ -303,7 +303,7 @@ class Frenzy(commands.Cog, name="Frenzy"):
         settings = await get_frenzy_settings(ctx.guild.id)
         if not settings.get("enabled", True):
             return await ctx.send(
-                embed=EmbedBuilder().title(emoji_title("error", "Frenzy Disabled")).description("Frenzy mode is disabled in this server.").color("error").timestamp(datetime.datetime.utcnow()).build()
+                embed=EmbedBuilder().description("Frenzy mode is disabled in this server.").header(emoji_title("error", "Frenzy Disabled")).color("error").timestamp(datetime.datetime.utcnow()).build()
             )
 
         if action == "status":
@@ -324,10 +324,9 @@ class Frenzy(commands.Cog, name="Frenzy"):
                     dur_text = "Until stopped"
                 embed = (
                     EmbedBuilder()
-                    .title(emoji_title("bolt", "Frenzy Active"))
-                    .description(f"**{mult}x XP** is currently active!")
+                    .description(f"**{mult}x XP** is currently active!").header(emoji_title("bolt", "Frenzy Active"))
                     .color("brand")
-                    .row(
+                    .divider().row(
                         ("Reason", rsn[:100]),
                         ("Remaining", dur_text),
                         ("Started by", f"<@{frenzy['started_by']}>" if frenzy.get("started_by") else "Auto"),
@@ -338,8 +337,7 @@ class Frenzy(commands.Cog, name="Frenzy"):
             else:
                 embed = (
                     EmbedBuilder()
-                    .title(emoji_title("bolt", "No Frenzy Active"))
-                    .description("No frenzy mode is currently active. Use `/frenzy start` to activate!")
+                    .description("No frenzy mode is currently active. Use `/frenzy start` to activate!").header(emoji_title("bolt", "No Frenzy Active"))
                     .color("info")
                     .timestamp(datetime.datetime.utcnow())
                     .build()
@@ -349,20 +347,20 @@ class Frenzy(commands.Cog, name="Frenzy"):
         if action == "stop":
             if not ctx.author.guild_permissions.manage_guild:
                 return await ctx.send(
-                    embed=EmbedBuilder().title(emoji_title("error", "No Permission")).description("You need **Manage Server** permission.").color("error").timestamp(datetime.datetime.utcnow()).build()
+                    embed=EmbedBuilder().description("You need **Manage Server** permission.").header(emoji_title("error", "No Permission")).color("error").timestamp(datetime.datetime.utcnow()).build()
                 )
             frenzy = await get_active_frenzy(ctx.guild.id)
             if not frenzy:
                 return await ctx.send("No frenzy is currently active.")
             await stop_frenzy(ctx.guild.id)
             return await ctx.send(
-                embed=EmbedBuilder().title(emoji_title("success", "Frenzy Stopped")).description("XP frenzy has been stopped.").color("success").timestamp(datetime.datetime.utcnow()).build()
+                embed=EmbedBuilder().description("XP frenzy has been stopped.").header(emoji_title("success", "Frenzy Stopped")).color("success").timestamp(datetime.datetime.utcnow()).build()
             )
 
         if action == "start":
             if not ctx.author.guild_permissions.manage_guild:
                 return await ctx.send(
-                    embed=EmbedBuilder().title(emoji_title("error", "No Permission")).description("You need **Manage Server** permission.").color("error").timestamp(datetime.datetime.utcnow()).build()
+                    embed=EmbedBuilder().description("You need **Manage Server** permission.").header(emoji_title("error", "No Permission")).color("error").timestamp(datetime.datetime.utcnow()).build()
                 )
             existing = await get_active_frenzy(ctx.guild.id)
             if existing:
@@ -382,7 +380,7 @@ class Frenzy(commands.Cog, name="Frenzy"):
             rsn = reason or f"Started by {ctx.author.display_name}"
             await self._activate_frenzy(ctx.guild.id, ctx.guild, mult, dur, rsn, ctx.author.id)
             return await ctx.send(
-                embed=EmbedBuilder().title(emoji_title("success", "Frenzy Started")).description(f"**{mult}x XP** is now active!").color("success").timestamp(datetime.datetime.utcnow()).build()
+                embed=EmbedBuilder().description(f"**{mult}x XP** is now active!").header(emoji_title("success", "Frenzy Started")).color("success").timestamp(datetime.datetime.utcnow()).build()
             )
 
 
