@@ -1,8 +1,8 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio
 import math
+import os
 import re
 import json
 import random
@@ -13,6 +13,13 @@ from Ediscord import logger, EmbedBuilder
 from Ediscord.builders import emoji_title
 from Ediscord import db as neon_db
 
+try:
+    import mafic
+    LAVALINK_AVAILABLE = True
+except ImportError:
+    mafic = None
+    LAVALINK_AVAILABLE = False
+
 
 MUSIC_DEFAULTS = {
     "enabled": False,
@@ -20,6 +27,23 @@ MUSIC_DEFAULTS = {
     "default_volume": 50,
     "announce_channel_id": None,
 }
+
+# Max tracks taken from a single playlist add (playlists can be thousands long).
+PLAYLIST_ADD_CAP = 100
+
+
+def _lavalink_cfg() -> dict:
+    """Node connection info from the environment (bot host side)."""
+    try:
+        port = int(os.environ.get("LAVALINK_PORT", "2333"))
+    except (TypeError, ValueError):
+        port = 2333
+    return {
+        "host": os.environ.get("LAVALINK_HOST", "").strip(),
+        "port": port,
+        "password": os.environ.get("LAVALINK_PASSWORD", ""),
+        "secure": os.environ.get("LAVALINK_SECURE", "0").strip().lower() in ("1", "true", "yes"),
+    }
 
 
 async def get_music_settings(guild_id: int):
@@ -78,22 +102,27 @@ class MusicPlayer(discord.ui.View):
 
     @discord.ui.button(label="⏸", style=discord.ButtonStyle.secondary, custom_id="music:pause")
     async def pause_resume(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.guild.voice_client:
+        player = self.cog._get_player(interaction.guild)
+        if player is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        if interaction.guild.voice_client.is_paused():
-            interaction.guild.voice_client.resume()
-            button.label = "⏸"
-        elif interaction.guild.voice_client.is_playing():
-            interaction.guild.voice_client.pause()
-            button.label = "▶"
+        try:
+            if player.paused:
+                await player.resume()
+                button.label = "⏸"
+            elif player.current is not None:
+                await player.pause()
+                button.label = "▶"
+        except Exception:
+            pass
         await interaction.response.edit_message(view=self)
 
     @discord.ui.button(label="⏹", style=discord.ButtonStyle.danger, custom_id="music:stop")
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.guild.voice_client:
+        player = self.cog._get_player(interaction.guild)
+        if player is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
@@ -101,9 +130,12 @@ class MusicPlayer(discord.ui.View):
         q = self.cog.queues.get(interaction.guild_id)
         if q:
             q.clear()
-        interaction.guild.voice_client.stop()
         try:
-            await interaction.guild.voice_client.disconnect()
+            await player.stop()
+        except Exception:
+            pass
+        try:
+            await player.disconnect()
         except Exception:
             pass
         embed = (
@@ -118,12 +150,16 @@ class MusicPlayer(discord.ui.View):
 
     @discord.ui.button(label="⏭", style=discord.ButtonStyle.secondary, custom_id="music:skip")
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not interaction.guild.voice_client:
+        player = self.cog._get_player(interaction.guild)
+        if player is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        interaction.guild.voice_client.stop()
+        try:
+            await player.stop()
+        except Exception:
+            pass
         await self.cog.play_next(interaction.guild)
         await interaction.response.send_message(
             embed=EmbedBuilder().description("Skipped to next track.").header(emoji_title("music", "Skipped")).color("brand").timestamp(datetime.datetime.utcnow()).build(),
@@ -167,6 +203,80 @@ class Music(commands.Cog, name="Music"):
         self.bot = bot
         self.queues = {}
         self.voice_states = {}
+        self.pool = None
+        if LAVALINK_AVAILABLE:
+            try:
+                self.pool = mafic.NodePool(bot)
+            except Exception as e:
+                logger.warning(f"Lavalink pool init failed: {e}")
+                self.pool = None
+        try:
+            self.bot.loop.create_task(self._connect_node())
+        except Exception:
+            pass
+
+    async def _connect_node(self):
+        """Connect the Lavalink node once the bot is ready (best-effort)."""
+        if not LAVALINK_AVAILABLE or self.pool is None:
+            return
+        try:
+            await self.bot.wait_until_ready()
+        except Exception:
+            return
+        cfg = _lavalink_cfg()
+        if not cfg["host"]:
+            logger.warning("Lavalink not configured (set LAVALINK_HOST/PORT/PASSWORD) - music playback disabled.")
+            return
+        try:
+            await self.pool.create_node(
+                host=cfg["host"], port=cfg["port"], label="MAIN",
+                password=cfg["password"], secure=cfg["secure"],
+            )
+            logger.info(f"Lavalink node connected at {cfg['host']}:{cfg['port']}.")
+        except Exception as e:
+            logger.warning(f"Lavalink node connect failed ({cfg['host']}:{cfg['port']}): {e}")
+
+    def _node_ready(self) -> bool:
+        return bool(LAVALINK_AVAILABLE and self.pool is not None and self.pool.nodes)
+
+    def _get_player(self, guild: discord.Guild):
+        """The mafic player for a guild, or None when not on Lavalink voice."""
+        vc = guild.voice_client
+        if LAVALINK_AVAILABLE and isinstance(vc, mafic.Player):
+            return vc
+        return None
+
+    @staticmethod
+    def _should_advance(reason) -> bool:
+        """Only natural ends / load failures advance the queue - user stops,
+        skips (handled explicitly) and disconnects must not double-advance."""
+        if not LAVALINK_AVAILABLE:
+            return False
+        try:
+            return reason in (mafic.EndReason.FINISHED, mafic.EndReason.LOAD_FAILED)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _build_queue_item(track, query: str, user) -> dict:
+        """Display-ready queue entry keeping the playable mafic Track."""
+        try:
+            duration = int((track.length or 0) // 1000)
+        except (TypeError, ValueError):
+            duration = 0
+        try:
+            name = str(user.name)
+        except Exception:
+            name = "Unknown"
+        return {
+            "url": getattr(track, "uri", None) or query,
+            "title": str(getattr(track, "title", None) or query)[:100],
+            "author": str(getattr(track, "author", "") or ""),
+            "duration": duration,
+            "requester": name,
+            "requester_id": str(getattr(user, "id", "")),
+            "_track": track,
+        }
 
     def get_queue(self, guild_id: int) -> MusicQueue:
         if guild_id not in self.queues:
@@ -181,51 +291,95 @@ class Music(commands.Cog, name="Music"):
         if not item:
             return
         q.current = item
-        voice = guild.voice_client
-        if not voice:
+        player = self._get_player(guild)
+        track = item.get("_track")
+        if player is None or track is None:
             return
-
         try:
-            source = await discord.FFmpegOpusAudio.from_probe(
-                item["url"],
-                before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                options='-vn'
-            )
+            await player.play(track, volume=int(q.volume * 100))
         except Exception as e:
-            logger.error(f"Failed to create audio source: {e}")
+            logger.warning(f"Lavalink play failed in {guild.id}: {e}")
             await self.play_next(guild)
+
+    @commands.Cog.listener("on_track_end")
+    async def _on_track_end(self, event):
+        """Advance the queue when a track ends naturally or fails to load."""
+        if not LAVALINK_AVAILABLE:
             return
+        try:
+            reason = event.reason
+            guild = event.player.guild
+        except AttributeError:
+            return
+        if not self._should_advance(reason) or guild is None:
+            return
+        await self.play_next(guild)
 
-        def after(error):
-            if error:
-                logger.error(f"Playback error: {error}")
-            coro = self.play_next(guild)
-            fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
-            try:
-                fut.result()
-            except Exception:
-                pass
+    @commands.Cog.listener("on_track_exception")
+    async def _on_track_exception(self, event):
+        if not LAVALINK_AVAILABLE:
+            return
+        try:
+            guild = event.player.guild
+        except AttributeError:
+            return
+        if guild is None:
+            return
+        logger.warning(f"Lavalink track exception: {getattr(event, 'exception', '?')}")
+        await self.play_next(guild)
 
-        voice.play(source, after=after)
-        if voice.source:
-            voice.source = discord.PCMVolumeTransformer(voice.source)
-            voice.source.volume = q.volume
+    @commands.Cog.listener("on_track_stuck")
+    async def _on_track_stuck(self, event):
+        if not LAVALINK_AVAILABLE:
+            return
+        try:
+            guild = event.player.guild
+        except AttributeError:
+            return
+        if guild is None:
+            return
+        logger.warning("Lavalink track stuck, skipping.")
+        await self.play_next(guild)
 
-    async def ensure_voice(self, interaction: discord.Interaction) -> bool:
+    def _node_unavailable_embed(self):
+        return EmbedBuilder().description(
+            "The music node is offline or not configured. Try again in a bit."
+        ).header(emoji_title("error", "Music Unavailable")).color("error").timestamp(datetime.datetime.utcnow()).build()
+
+    async def _reply_error(self, interaction: discord.Interaction, embed):
+        """Ephemeral error reply that works before and after defer()."""
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception:
+            pass
+
+    async def ensure_voice(self, interaction: discord.Interaction):
+        """Return a connected mafic player for the invoker's channel, or None
+        (with an error already sent)."""
         if not interaction.user.voice or not interaction.user.voice.channel:
-            await interaction.response.send_message(
-                embed=EmbedBuilder().description("You must be in a voice channel.").header(emoji_title("error", "Not in Voice")).color("error").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-            return False
-        voice = interaction.guild.voice_client
-        if voice and voice.channel.id != interaction.user.voice.channel.id:
-            await interaction.response.send_message(
-                embed=EmbedBuilder().description("I'm already in another voice channel.").header(emoji_title("error", "Already Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
-                ephemeral=True
-            )
-            return False
-        return True
+            await self._reply_error(interaction,
+                EmbedBuilder().description("You must be in a voice channel.").header(emoji_title("error", "Not in Voice")).color("error").timestamp(datetime.datetime.utcnow()).build())
+            return None
+        if not self._node_ready():
+            await self._reply_error(interaction, self._node_unavailable_embed())
+            return None
+        channel = interaction.user.voice.channel
+        player = self._get_player(interaction.guild)
+        if player is not None and player.channel.id != channel.id:
+            await self._reply_error(interaction,
+                EmbedBuilder().description("I'm already in another voice channel.").header(emoji_title("error", "Already Connected")).color("error").timestamp(datetime.datetime.utcnow()).build())
+            return None
+        if player is None:
+            try:
+                player = await channel.connect(cls=mafic.Player)
+            except Exception as e:
+                await self._reply_error(interaction,
+                    EmbedBuilder().description(f"Could not connect: {str(e)[:100]}").header(emoji_title("error", "Connection Failed")).color("error").timestamp(datetime.datetime.utcnow()).build())
+                return None
+        return player
 
     class MusicGroup(app_commands.Group):
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -270,39 +424,59 @@ class Music(commands.Cog, name="Music"):
     @app_commands.describe(query="Song URL or search term")
     async def play(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
-        if not await self.ensure_voice(interaction):
+        player = await self.ensure_voice(interaction)
+        if player is None:
             return
 
-        voice = interaction.guild.voice_client
-        if not voice:
-            try:
-                voice = await interaction.user.voice.channel.connect()
-            except Exception as e:
-                return await interaction.followup.send(
-                    embed=EmbedBuilder().description(f"Could not connect: {str(e)[:100]}").header(emoji_title("error", "Connection Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
-                    ephemeral=True
-                )
+        try:
+            loaded = await player.fetch_tracks(query)
+        except Exception as e:
+            logger.warning(f"Lavalink search failed: {e}")
+            loaded = None
+        tracks = []
+        playlist_name = None
+        if isinstance(loaded, mafic.Playlist):
+            playlist_name = loaded.name
+            tracks = list(loaded.tracks)
+        elif isinstance(loaded, list):
+            tracks = loaded
+        if not tracks:
+            return await interaction.followup.send(
+                embed=EmbedBuilder().description(f"No results for `{query[:100]}`.").header(emoji_title("error", "Nothing Found")).color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
 
         q = self.get_queue(interaction.guild_id)
-        item = {"url": query, "title": query[:100], "duration": 0, "requester": interaction.user.name, "requester_id": str(interaction.user.id)}
+        added = 0
+        for track in tracks[:PLAYLIST_ADD_CAP]:
+            q.add(self._build_queue_item(track, query, interaction.user))
+            added += 1
 
-        if not voice.is_playing():
-            q.add(item)
+        if player.current is None and not player.paused:
             await self.play_next(interaction.guild)
+            first = q.current or {}
             embed = (
                 EmbedBuilder()
-                .description(query[:200]).header(emoji_title("music", "Now Playing"))
+                .description(f"{first.get('title', query)[:200]}" + (f"\n*{added - 1} more from **{playlist_name}** queued*" if playlist_name and added > 1 else ""))
+                .header(emoji_title("music", "Now Playing"))
                 .color("brand")
-                .divider().field("Requested by", interaction.user.mention)
+                .divider().row(
+                    ('Requested by', interaction.user.mention),
+                    ('Duration', f"{(first.get('duration') or 0) // 60}:{(first.get('duration') or 0) % 60:02d}" if first.get('duration') else "Live"),
+                )
                 .footer(f"User ID: {str(interaction.user.id)}")
                 .timestamp(datetime.datetime.utcnow())
                 .build()
             )
         else:
-            q.add(item)
+            if playlist_name:
+                desc = f"Queued **{added}** tracks from **{playlist_name}**"
+            else:
+                first = tracks[0]
+                desc = f"{getattr(first, 'title', query)[:200]}"
             embed = (
                 EmbedBuilder()
-                .description(query[:200]).header(emoji_title("music", "Added to Queue"))
+                .description(desc).header(emoji_title("music", "Added to Queue"))
                 .color("brand")
                 .divider().row(
                     ('Position', str(len(q))),
@@ -318,21 +492,25 @@ class Music(commands.Cog, name="Music"):
 
     @music_group.command(name="skip", description="Skip the current song")
     async def skip(self, interaction: discord.Interaction):
-        voice = interaction.guild.voice_client
-        if not voice or not voice.is_playing():
+        player = self._get_player(interaction.guild)
+        if player is None or player.current is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Nothing is currently playing.").header(emoji_title("error", "Nothing Playing")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        voice.stop()
+        try:
+            await player.stop()
+        except Exception:
+            pass
+        await self.play_next(interaction.guild)
         await interaction.response.send_message(
             embed=EmbedBuilder().description("Skipped to next track.").header(emoji_title("music", "Skipped")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="stop", description="Stop playback and clear the queue")
     async def stop_music(self, interaction: discord.Interaction):
-        voice = interaction.guild.voice_client
-        if not voice:
+        player = self._get_player(interaction.guild)
+        if player is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
@@ -340,9 +518,12 @@ class Music(commands.Cog, name="Music"):
         q = self.queues.get(interaction.guild_id)
         if q:
             q.clear()
-        voice.stop()
         try:
-            await voice.disconnect()
+            await player.stop()
+        except Exception:
+            pass
+        try:
+            await player.disconnect()
         except Exception:
             pass
         await interaction.response.send_message(
@@ -391,14 +572,19 @@ class Music(commands.Cog, name="Music"):
                 embed=EmbedBuilder().description("Volume must be between 0 and 100.").header(emoji_title("error", "Invalid Volume")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        voice = interaction.guild.voice_client
-        if not voice:
+        player = self._get_player(interaction.guild)
+        if player is None:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Not connected to a voice channel.").header(emoji_title("error", "Not Connected")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        if voice.source:
-            voice.source.volume = level / 100
+        try:
+            await player.set_volume(level)
+        except Exception as e:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().description(f"Could not set volume: {str(e)[:100]}").header(emoji_title("error", "Volume Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         q = self.queues.get(interaction.guild_id)
         if q:
             q.volume = level / 100
@@ -427,26 +613,38 @@ class Music(commands.Cog, name="Music"):
 
     @music_group.command(name="pause", description="Pause the current song")
     async def pause(self, interaction: discord.Interaction):
-        voice = interaction.guild.voice_client
-        if not voice or not voice.is_playing():
+        player = self._get_player(interaction.guild)
+        if player is None or player.current is None or player.paused:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Nothing is currently playing.").header(emoji_title("error", "Nothing Playing")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        voice.pause()
+        try:
+            await player.pause()
+        except Exception as e:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().description(f"Could not pause: {str(e)[:100]}").header(emoji_title("error", "Pause Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await interaction.response.send_message(
             embed=EmbedBuilder().description("Playback paused.").header(emoji_title("music", "Paused")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )
 
     @music_group.command(name="resume", description="Resume playback")
     async def resume(self, interaction: discord.Interaction):
-        voice = interaction.guild.voice_client
-        if not voice or not voice.is_paused():
+        player = self._get_player(interaction.guild)
+        if player is None or not player.paused:
             return await interaction.response.send_message(
                 embed=EmbedBuilder().description("Playback is not paused.").header(emoji_title("error", "Not Paused")).color("error").timestamp(datetime.datetime.utcnow()).build(),
                 ephemeral=True
             )
-        voice.resume()
+        try:
+            await player.resume()
+        except Exception as e:
+            return await interaction.response.send_message(
+                embed=EmbedBuilder().description(f"Could not resume: {str(e)[:100]}").header(emoji_title("error", "Resume Failed")).color("error").timestamp(datetime.datetime.utcnow()).build(),
+                ephemeral=True
+            )
         await interaction.response.send_message(
             embed=EmbedBuilder().description("Playback resumed.").header(emoji_title("music", "Resumed")).color("brand").timestamp(datetime.datetime.utcnow()).build()
         )

@@ -1,0 +1,105 @@
+# Lavalink v4 server config — runs on its OWN host (Java 17+, ~1GB RAM),
+# not on the bot box. Copy this file next to Lavalink.jar as application.yml.
+#
+# Setup:
+#   1. Install Java 17+ (e.g. `apt install openjdk-17-jre-headless`).
+#   2. Download Lavalink.jar (v4+) from github.com/lavalink-devs/Lavalink/releases
+#      into an empty dir, plus the plugin jars below into ./plugins/:
+#        - youtube-plugin (lavalink-devs/youtube-source releases, v1.x for v4)
+#        - lavasrc-plugin (topi314/LavaSrc releases, v4.x)
+#      Example layout:
+#        lavalink/
+#          Lavalink.jar
+#          application.yml   (this file)
+#          plugins/
+#            youtube-plugin-1.11.3.jar
+#            lavasrc-plugin-4.3.0.jar
+#   3. Set a strong password below (server.password) and mirror it into the
+#      bot's env as LAVALINK_PASSWORD (plus LAVALINK_HOST/PORT).
+#   4. Open the port ONLY to the bot host's IP (firewall!), or put both boxes
+#      on the same private network.
+#   5. Optional but recommended:
+#        - Spotify: create a free app at developer.spotify.com/dashboard and
+#          fill clientId/clientSecret below (unlocks open.spotify.com links).
+#        - YouTube: if tracks start failing with "sign in to confirm you're
+#          not a bot", complete the plugin's OAuth flow ONCE with a throwaway
+#          Google account (never your main!) and paste the refresh token below.
+#          See github.com/lavalink-devs/youtube-source#using-oauth-tokens.
+#   6. Run:  java -Xmx1G -jar Lavalink.jar
+#      (use a process manager like systemd so it restarts on crash/reboot)
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+  server:
+    password: "CHANGE_ME_STRONG_PASSWORD"
+    sources:
+      youtube: true
+      bandcamp: true
+      soundcloud: true
+      twitch: true
+      vimeo: true
+      http: true
+      local: false
+    filters:
+      volume: true
+      equalizer: true
+      karaoke: false
+      timescale: false
+      tremolo: false
+      vibrato: false
+      rotation: false
+      distortion: false
+      channelMix: false
+      lowPass: false
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 10
+    resamplingQuality: LOW
+    trackStuckThresholdMs: 10000
+    useChronometer: true
+    playerUpdateInterval: 5
+    youtubePlaylistLoadLimit: 6
+    youtubeSearchEnabled: true
+    soundcloudSearchEnabled: true
+    gc-warnings: true
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
+    clients:
+      - MUSIC
+      - WEB
+      - WEBEMBEDDED
+      - ANDROID_VR
+      - TV
+    oauth:
+      enabled: false
+      skipInitialization: false
+      # refreshToken: "PASTE_BURNER_ACCOUNT_TOKEN_HERE"
+    # pot:
+    #   token: ""
+    #   visitorData: ""
+  lavasrc:
+    providers:
+      - "ytsearch:\"%ISRC%\""
+      - "ytsearch:%QUERY%"
+      - "scsearch:%QUERY%"
+      - "spsearch:%QUERY%"
+    sources:
+      spotify: true
+      applemusic: false
+      deezer: false
+      yandexmusic: false
+      flowerytts: false
+      vkmusic: false
+      youtube: true
+    spotify:
+      clientId: "" # free app: developer.spotify.com/dashboard/create
+      clientSecret: ""
+      playlistLoadLimit: 6
+      albumLoadLimit: 6
