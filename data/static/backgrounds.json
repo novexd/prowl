@@ -1,0 +1,100 @@
+{
+  "backgrounds": [
+    {
+      "id": "grad-arctic-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-arctic-1.jpg"
+    },
+    {
+      "id": "grad-arctic-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-arctic-2.jpg"
+    },
+    {
+      "id": "grad-candy-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-candy-1.jpg"
+    },
+    {
+      "id": "grad-candy-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-candy-2.jpg"
+    },
+    {
+      "id": "grad-crimson-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-crimson-1.jpg"
+    },
+    {
+      "id": "grad-crimson-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-crimson-2.jpg"
+    },
+    {
+      "id": "grad-cyber-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-cyber-1.jpg"
+    },
+    {
+      "id": "grad-cyber-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-cyber-2.jpg"
+    },
+    {
+      "id": "grad-ember-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-ember-1.jpg"
+    },
+    {
+      "id": "grad-ember-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-ember-2.jpg"
+    },
+    {
+      "id": "grad-forest-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-forest-1.jpg"
+    },
+    {
+      "id": "grad-forest-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-forest-2.jpg"
+    },
+    {
+      "id": "grad-mono-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-mono-1.jpg"
+    },
+    {
+      "id": "grad-mono-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-mono-2.jpg"
+    },
+    {
+      "id": "grad-nebula-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-nebula-1.jpg"
+    },
+    {
+      "id": "grad-nebula-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-nebula-2.jpg"
+    },
+    {
+      "id": "grad-ocean-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-ocean-1.jpg"
+    },
+    {
+      "id": "grad-ocean-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-ocean-2.jpg"
+    },
+    {
+      "id": "grad-peach-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-peach-1.jpg"
+    },
+    {
+      "id": "grad-peach-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-peach-2.jpg"
+    },
+    {
+      "id": "grad-royal-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-royal-1.jpg"
+    },
+    {
+      "id": "grad-royal-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-royal-2.jpg"
+    },
+    {
+      "id": "grad-sunset-1",
+      "url": "https://prowlbot.xyz/static/bg/grad-sunset-1.jpg"
+    },
+    {
+      "id": "grad-sunset-2",
+      "url": "https://prowlbot.xyz/static/bg/grad-sunset-2.jpg"
+    }
+  ]
+}
