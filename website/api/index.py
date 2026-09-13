@@ -2377,11 +2377,11 @@ async def server_health(guild_id: str, request: Request):
     if member_count >= 200:
         leniency = 0.0
     elif member_count >= 100:
-        leniency = 0.10
-    elif member_count >= 50:
         leniency = 0.20
+    elif member_count >= 50:
+        leniency = 0.35
     else:
-        leniency = 0.30
+        leniency = 0.50
 
     # 1. Activity Trend: compare this week's avg messages vs last week's
     activity_score = 50
