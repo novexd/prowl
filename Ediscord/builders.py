@@ -301,7 +301,7 @@ def emoji_title(key: str, text: str) -> str:
 # use between sections (embeds have no border/outline primitive). U+2501
 # (heavy horizontal) is used over U+2500 (light) because the light joins show
 # visible seams in most fonts, making it look like spaced underscores.
-DIVIDER_LINE = "━" * 16
+DIVIDER_LINE = "_" * 16
 
 
 def header_md(text: str) -> str:
@@ -391,7 +391,7 @@ class EmbedBuilder:
     def divider(self) -> "EmbedBuilder":
         """Append a horizontal separator field (embeds have no outline/border
         primitive, so sections are split with a rule line instead)."""
-        self._fields.append({"name": "\u200b", "value": DIVIDER_LINE, "inline": False})
+        self._fields.append({"name": "\u200b", "value": DIVIDER_LINE, "inline": True})
         return self
 
     def color(self, value: Union[str, int, discord.Color]) -> "EmbedBuilder":
